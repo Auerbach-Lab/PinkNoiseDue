@@ -8209,10 +8209,10 @@ void dac_setup2() // DAC set-up for analogue & synchronized square wave when in 
 //A2 56 and A4 58 are available, but do not use A3, causes noise on boot, stop before start, other weirdness
 //odd pins from 25 through 39 are available now
 //13 is the onboard LED but otherwise unused
-#define TTL_OUTPUT_PIN 13
 #define TEST_BUTTON_PIN 25
 #define SEQUENCE_BUTTON_PIN 27
-#define SOUND_GATE_PIN 29
+#define TTL_OUTPUT_PIN 29
+#define SOUND_GATE_PIN 33 //burned 31 on the board I'm using
 
 static void playSound() {
   Serial.println("Sound playing");
