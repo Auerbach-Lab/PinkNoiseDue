@@ -18,6 +18,17 @@ unsigned long soundStop = 0;
 bool sendingTTL = false;
 bool playingSound = false;
 
+/* Using timings of 1000/500/5000, the current sequence will be:
+                  0 s    sequence start button pushed
+[offset]          1.0 s  pre-sound imaging starts
+[image duration]  1.5 s  pre-sound imaging stops
+[offset]          2.5 s  sound starts
+[calculated]      4.75 s imaging starts (centered on middle of sound playback)
+[image duration]  5.25 s imaging stops
+                  7.5 s  sound stops
+[offset]          8.5 s  post-sound imaging starts
+[image duration]  9.0 s  post-sound imaging stops*/
+
 static void sequenceHandler(uint8_t btnId, uint8_t btnState) {
   if ((btnState == BTN_PRESSED) && !imageStop[2]) {
     Serial.println("Pressed sequence button");
