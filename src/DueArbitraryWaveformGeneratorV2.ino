@@ -1,3 +1,8 @@
+#include <Arduino.h>
+#include <DueFlashStorage.h>
+#include <efc.h>
+#include <flash_efc.h>
+
 // The Due Arbitrary Waveform Generator was created by Bruce Evans. Version 1 was written in 2017. Some code (specifically some of the "Direct port manipulation" code found mostly at the end of this file) was adapted from Kerry D. Wong, ard_newie, Mark T, MartinL, the Magician and possibly others. Many thanks! Version 2 was developed with some inspiration from mszoke01, chhckm, gagarinui and others who commented on the create.arduino website listed below.
 //
 // This is Version 2, introduced in 2022:
@@ -1585,7 +1590,7 @@ const PROGMEM uint8_t MsfNoteBand9[][3][13] = // [instrument] [cycle] [samples] 
 
 /***********************************************************************************************/ 
 
-void setup()
+void Setup1_DAWG()
 {
   analogReadResolution(12);
   analogWriteResolution(12);
@@ -2483,7 +2488,7 @@ void Create2ndHalfNewWave(int fm, float inc1)
   }
 }
 
-void loop()
+void Loop_DAWG()
 {
   if (millis() > SwitchPressedTime + 500) // check state of pot enable switch:
   {

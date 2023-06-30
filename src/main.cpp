@@ -3,6 +3,7 @@
 #include <DueFlashStorage.h>
 #include <efc.h>
 #include <flash_efc.h>
+#include <DueArbitraryWaveformGeneratorV2.ino>
 
 // EDIT THESE VALUES to adjust timings on existing sequence.
 #define OFFSET 1000           // ms between steps in sequence
@@ -43,6 +44,11 @@ static void sequenceHandler(uint8_t btnId, uint8_t btnState) {
     Serial.println("Released sequence button");
   }
 }
+
+
+#define SEQUENCE_BUTTON_PIN 56 //A2
+#define TEST_BUTTON_PIN 58     //A4
+#define TTL_OUTPUT_PIN 13  
 
 static void playSound() {
   Serial.println("Sound playing");
@@ -85,10 +91,6 @@ static void testHandler(uint8_t btnId, uint8_t btnState) {
   }
 }
 
-#define SEQUENCE_BUTTON_PIN 56 //A2
-#define TEST_BUTTON_PIN 58     //A4
-#define TTL_OUTPUT_PIN 13  
-
 // Define button with a unique id (0) and handler function.
 // (The ids are so one handler function can tell different buttons apart if necessary.)
 static Button seqButton(0, sequenceHandler);
@@ -101,15 +103,12 @@ static void pollButtons() {
   testButton.update(digitalRead(TEST_BUTTON_PIN));
 }
 
-void setup() {
-  analogReadResolution(12);
-  analogWriteResolution(12);
-  Serial.begin (115200);
-  Serial.setTimeout(50);
-  
+void setup() { 
   pinMode(SEQUENCE_BUTTON_PIN, INPUT_PULLUP);
   pinMode(TEST_BUTTON_PIN, INPUT_PULLUP);
   pinMode(TTL_OUTPUT_PIN, OUTPUT);
+
+  Setup1_DAWG();
 }
 
 void loop() { // nothing here for ongoing pink noise, all driven by ISR
@@ -123,5 +122,5 @@ void loop() { // nothing here for ongoing pink noise, all driven by ISR
     if(playingSound && soundStop && (currentMillis > soundStop)) silenceSound();
   }
 
-  delay(10);
+  Loop_DAWG();
 }
