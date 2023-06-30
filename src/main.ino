@@ -34,7 +34,7 @@ static void sequenceHandler(uint8_t btnId, uint8_t btnState) {
     Serial.println("Pressed sequence button");
     
     //pre image
-    imageStart[0] = currentMillis + OFFSET;
+    imageStart[0] = millis() + OFFSET;
     imageStop[0] = imageStart[0] + IMAGE_DURATION;
 
     //sound
@@ -1689,14 +1689,14 @@ void Setup_DAWG()
   pinMode(4, OUTPUT);  // indicates: Freq Sweep ON
   pinMode(6, OUTPUT);  // indicates: Timer ON
   pinMode(23, OUTPUT); // indicates: pots enabled
-  pinMode(25, OUTPUT); // indicates: Unsync'ed square wave: Pot controls FREQ or PERIOD
-  pinMode(27, OUTPUT); // indicates: Unsync'ed square wave: Pot controls FREQ or PERIOD
-  pinMode(29, OUTPUT); // indicates: Sync'ed wave: Pot controls FREQ or PERIOD
-  pinMode(31, OUTPUT); // indicates: Sync'ed wave: Pot controls FREQ or PERIOD
-  pinMode(33, OUTPUT); // indicates: Unsync'ed square wave: Pot controls DUTY CYCLE or PULSE WIDTH
-  pinMode(35, OUTPUT); // indicates: Unsync'ed square wave: Pot controls DUTY CYCLE or PULSE WIDTH
-  pinMode(37, OUTPUT); // indicates: Sync'ed wave: Pot controls DUTY CYCLE or PULSE WIDTH
-  pinMode(39, OUTPUT); // indicates: Sync'ed wave: Pot controls DUTY CYCLE or PULSE WIDTH
+  //pinMode(25, OUTPUT); // indicates: Unsync'ed square wave: Pot controls FREQ or PERIOD
+  //pinMode(27, OUTPUT); // indicates: Unsync'ed square wave: Pot controls FREQ or PERIOD
+  //pinMode(29, OUTPUT); // indicates: Sync'ed wave: Pot controls FREQ or PERIOD
+  //pinMode(31, OUTPUT); // indicates: Sync'ed wave: Pot controls FREQ or PERIOD
+  //pinMode(33, OUTPUT); // indicates: Unsync'ed square wave: Pot controls DUTY CYCLE or PULSE WIDTH
+  //pinMode(35, OUTPUT); // indicates: Unsync'ed square wave: Pot controls DUTY CYCLE or PULSE WIDTH
+  //pinMode(37, OUTPUT); // indicates: Sync'ed wave: Pot controls DUTY CYCLE or PULSE WIDTH
+  //pinMode(39, OUTPUT); // indicates: Sync'ed wave: Pot controls DUTY CYCLE or PULSE WIDTH
   pinMode(41, OUTPUT); // indicates: Exact Freq Mode ON 
   pinMode(45, OUTPUT); // indicates: Square Wave Sync ON
   pinMode(47, OUTPUT); // indicates: Analogue wave is being controlled
@@ -2558,14 +2558,14 @@ void Loop_DAWG()
       {
         digitalWrite(4, LOW);
         digitalWrite(6, LOW);
-        digitalWrite(25, LOW);
-        digitalWrite(27, LOW);
-        digitalWrite(29, LOW);
-        digitalWrite(31, LOW);
-        digitalWrite(33, LOW);
-        digitalWrite(35, LOW);
-        digitalWrite(37, LOW);
-        digitalWrite(39, LOW);
+        // digitalWrite(25, LOW);
+        // digitalWrite(27, LOW);
+        // digitalWrite(29, LOW);
+        // digitalWrite(31, LOW);
+        // digitalWrite(33, LOW);
+        // digitalWrite(35, LOW);
+        // digitalWrite(37, LOW);
+        // digitalWrite(39, LOW);
         digitalWrite(41, LOW);
         digitalWrite(45, LOW);
         digitalWrite(47, LOW);
@@ -2908,14 +2908,14 @@ void Loop_DAWG()
       {
         if (PotsEnabled >= 2) // pot related switches:
         {
-          digitalWrite(25, PotPeriodMode[0]);
-          digitalWrite(27, !PotPeriodMode[0]);
-          digitalWrite(29, PotPeriodMode[1]);
-          digitalWrite(31, !PotPeriodMode[1]);
-          digitalWrite(33, !PotPulseWidth[0]);
-          digitalWrite(35, PotPulseWidth[0]);
-          digitalWrite(37, !PotPulseWidth[1]);
-          digitalWrite(39, PotPulseWidth[1]);
+          // digitalWrite(25, PotPeriodMode[0]);
+          // digitalWrite(27, !PotPeriodMode[0]);
+          // digitalWrite(29, PotPeriodMode[1]);
+          // digitalWrite(31, !PotPeriodMode[1]);
+          // digitalWrite(33, !PotPulseWidth[0]);
+          // digitalWrite(35, PotPulseWidth[0]);
+          // digitalWrite(37, !PotPulseWidth[1]);
+          // digitalWrite(39, PotPulseWidth[1]);
         }
         if (PotsEnabled != 2) // non - pot related switches:
         {
@@ -2934,14 +2934,14 @@ void Loop_DAWG()
       {
         digitalWrite(4, LOW);
         digitalWrite(6, LOW);
-        digitalWrite(25, LOW);
-        digitalWrite(27, LOW);
-        digitalWrite(29, LOW);
-        digitalWrite(31, LOW);
-        digitalWrite(33, LOW);
-        digitalWrite(35, LOW);
-        digitalWrite(37, LOW);
-        digitalWrite(39, LOW);
+        // digitalWrite(25, LOW);
+        // digitalWrite(27, LOW);
+        // digitalWrite(29, LOW);
+        // digitalWrite(31, LOW);
+        // digitalWrite(33, LOW);
+        // digitalWrite(35, LOW);
+        // digitalWrite(37, LOW);
+        // digitalWrite(39, LOW);
         digitalWrite(41, LOW);
         digitalWrite(45, LOW);
         digitalWrite(47, LOW);
@@ -8206,10 +8206,13 @@ void dac_setup2() // DAC set-up for analogue & synchronized square wave when in 
 //  dacc_enable_channel(DACC, 1);                 // un-comment these 2 lines to enable DAC1
 }
 
-
-#define SEQUENCE_BUTTON_PIN 56 //A2
-#define TEST_BUTTON_PIN 58     //A4
-#define TTL_OUTPUT_PIN 13  
+//A2 56 and A4 58 are available, but do not use A3, causes noise on boot, stop before start, other weirdness
+//odd pins from 25 through 39 are available now
+//13 is the onboard LED but otherwise unused
+#define TTL_OUTPUT_PIN 13
+#define TEST_BUTTON_PIN 25
+#define SEQUENCE_BUTTON_PIN 27
+#define SOUND_GATE_PIN 29
 
 static void playSound() {
   Serial.println("Sound playing");
@@ -8269,7 +8272,7 @@ void setup() {
   pinMode(TEST_BUTTON_PIN, INPUT_PULLUP);
   pinMode(TTL_OUTPUT_PIN, OUTPUT);
 
-  Setup_DAWG();
+  Setup_DAWG(); //Due Arbitrary Waveform Generator - not my acronym haha
 }
 
 void loop() { // nothing here for ongoing pink noise, all driven by ISR
@@ -8277,12 +8280,34 @@ void loop() { // nothing here for ongoing pink noise, all driven by ISR
   currentMillis = millis();
   
   for (unsigned int i=0; i < sizeof imageStart / sizeof imageStart[i]; i++) {
-    if(!sendingTTL && imageStart[i] && (currentMillis > imageStart[i])) startImaging(i);
-    if(sendingTTL && imageStop[i] && (currentMillis > imageStop[i])) stopImaging(i);
-    if(!playingSound && soundStart && (currentMillis > soundStart)) playSound();
-    if(playingSound && soundStop && (currentMillis > soundStop)) silenceSound();
+    // Serial.print(currentMillis);
+    // Serial.print(" ");
+    // Serial.print(i);
+    
+    // Serial.print("     image:");
+    // Serial.print(sendingTTL);
+    // Serial.print(" ");
+    // Serial.print(imageStart[i]);
+    // Serial.print(" ");
+    // Serial.print(imageStop[i]);
+
+
+    // Serial.print("     audio:");
+    // Serial.print(playingSound);
+    // Serial.print(" ");
+    // Serial.print(soundStart);
+    // Serial.print(" ");
+    // Serial.print(soundStop);
+    
+    // Serial.println("");
+
+
+    if(!sendingTTL && imageStart[i] && (currentMillis > imageStart[i])) {startImaging(i);}
+    else if(sendingTTL && imageStop[i] && (currentMillis > imageStop[i])) {stopImaging(i);}
+    else if(!playingSound && soundStart && (currentMillis > soundStart)) {playSound();}
+    else if(playingSound && soundStop && (currentMillis > soundStop)) {silenceSound();}
   }
 
-  Loop_DAWG();
-  //delay is handled in Loop_DAWG
+  Loop_DAWG(); //Due Arbitrary Waveform Generator - not my acronym haha
+  delay(10);
 }
