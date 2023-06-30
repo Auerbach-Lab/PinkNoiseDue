@@ -8273,4 +8273,5 @@ void loop() { // nothing here for ongoing pink noise, all driven by ISR
   }
 
   Loop_DAWG();
+  //delay is handled in Loop_DAWG
 }
