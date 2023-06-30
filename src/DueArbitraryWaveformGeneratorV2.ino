@@ -252,7 +252,7 @@ byte     MinMaxDuty       = 1;      // min & max duty-cycle limit for waves (in 
 bool     PotAdjFreq[]     = {1, 1}; // {unsynchronized wave, synchronized waves}: toggles freq adjustment by pot(1) or serial(0)
 bool     PotAdjDuty[]     = {1, 1}; // {unsynchronized wave, synchronized waves}: toggles duty-cycle adjustment by pot(1) or serial(0)
 float    WaveReading      = 1000;   // Target freq / period (reading from pot)
-byte     WaveShape        = 0;      // 0 = Sinewave, 1 = Triangle / Sawtooth, 2 = Arbitrary, 3 = Composite, 4 = TRNG Noise
+byte     WaveShape        = 4;      // 0 = Sinewave, 1 = Triangle / Sawtooth, 2 = Arbitrary, 3 = Composite, 4 = TRNG Noise
 double   TargetWaveFreq   = 1000;   // synchronized waves Target freq     <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< DETERMINES START-UP FREQUENCY for Analogue Wave
 float    TargetWavePeriod = 0;      // only used for saving to flash and sending to GUI (0 if not set)
 float    TargetWaveDuty   = 50;     // synchronized waves Target duty-cycle  <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< DETERMINES START-UP DUTY-CYCLE for Analogue Wave
@@ -313,7 +313,7 @@ float    ComSinAmp   = 0.5;  // Sine Wave mix
 float    ComTriAmp   = 0.5;  // Triangle Wave mix
 float    ComArbAmp   = 0.5;  // Arbitrary Wave mix
 // WaveShape 4 - TRNG Noise:
-uint16_t NoiseAmp    = 100;  // Amplitude
+uint16_t NoiseAmp    = 0;  // Amplitude
 uint16_t NoiseColour = 500; // Noise colour: 500 = Pink noise
 /********************************************************/
 // For Modulation & Music:
@@ -1583,7 +1583,7 @@ const PROGMEM uint8_t MsfNoteBand9[][3][13] = // [instrument] [cycle] [samples] 
   }
 };
 
-/***********************************************************************************************/
+/***********************************************************************************************/ 
 
 void setup()
 {
@@ -1667,6 +1667,15 @@ void setup()
   if (TargetFreq < 163 || SquareWaveSync) PIO_Configure(PIOC, PIO_PERIPH_B, PIO_PC28B_TIOA7, PIO_DEFAULT); // enable pin 3
   else pinMode(7, OUTPUT); // Square wave PWM output
   randomSeed(analogRead(3)); // for arbitrary random wave only (not noise) - A0 & A1 used for pots. A2 used for modulation
+  
+  //noise setup
+  if (TimerMode == 2) OldSquareWaveSync = 1;
+  else OldSquareWaveSync = SquareWaveSync;
+  if (SquareWaveSync) ToggleSquareWaveSync(0); // change to Unsychronized Square Wave if sychronized
+  NVIC_DisableIRQ(TC0_IRQn); // disable TC_setup2() SlowMode IRQ before setting TC_setup1()
+  TC_setup1();
+  dac_setup2();
+
   Setup2();
 }
 
@@ -1716,7 +1725,7 @@ void Settings(byte defaultMode, int preset, boolean sendToGUI) // defaultMode: 0
     Cfg.PeriodS        = 10;  // seconds - Target time period for timer
     Cfg.TimerMode      = 0;
     Cfg.SweepMode      = 0;
-    Cfg.WaveShape      = 0;
+    Cfg.WaveShape      = 4;
     Cfg.ExactFreqMode  = 0;
     Cfg.SquareWaveSync = 0;
     Cfg.TimerInvert    = 0;
@@ -1748,7 +1757,7 @@ void Settings(byte defaultMode, int preset, boolean sendToGUI) // defaultMode: 0
     Cfg.ComSinAmp      = 0.5;  // Sine Wave mix
     Cfg.ComTriAmp      = 0.5;  // Triangle Wave mix
     Cfg.ComArbAmp      = 0.5;  // Arbitrary Wave mix
-    Cfg.NoiseAmp       = 100;  // Amplitude
+    Cfg.NoiseAmp       = 0;  // Amplitude
     Cfg.NoiseColour    = 500;  // Noise colour: 500 = Pink noise
     byte bArray[sizeof(Configuration)]; // create byte array to store the structure
     memcpy(bArray, &Cfg, sizeof(Configuration)); // copy the struct to the byte array
