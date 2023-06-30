@@ -4,10 +4,6 @@
 #include <efc.h>
 #include <flash_efc.h>
 
-#define SEQUENCE_BUTTON_PIN 4
-#define TEST_BUTTON_PIN 3
-#define TTL_OUTPUT_PIN 7
-
 // EDIT THESE VALUES to adjust timings on existing sequence.
 #define OFFSET 1000           // ms between steps in sequence
 #define IMAGE_DURATION 500    // ms duration of TTL signal for imaging
@@ -50,16 +46,14 @@ static void sequenceHandler(uint8_t btnId, uint8_t btnState) {
 
 static void playSound() {
   Serial.println("Sound playing");
-  //analogWrite(AUDIO_OUTPUT_PIN, 128); 
-  //digitalWrite(SOUND_GATE_PIN, HIGH);
+  NoiseAmp = 1000;
   playingSound = true;
   soundStart = 0; //clear assignment
 }
 
 static void silenceSound() {
   Serial.println("Sound silenced"); 
-  // analogWrite(AUDIO_OUTPUT_PIN, 0); //set duty cycle to 0% but doesn't fully silence, so a transistor/mosfet is needed
-  // digitalWrite(SOUND_GATE_PIN, LOW); 
+  NoiseAmp = 0;
   playingSound = false;
   soundStop = 0; //clear assignment     
 }
@@ -90,6 +84,10 @@ static void testHandler(uint8_t btnId, uint8_t btnState) {
     stopImaging(0);
   }
 }
+
+#define SEQUENCE_BUTTON_PIN 56 //A2
+#define TEST_BUTTON_PIN 58     //A4
+#define TTL_OUTPUT_PIN 13  
 
 // Define button with a unique id (0) and handler function.
 // (The ids are so one handler function can tell different buttons apart if necessary.)
