@@ -8217,6 +8217,7 @@ void dac_setup2() // DAC set-up for analogue & synchronized square wave when in 
 static void playSound() {
   Serial.println("Sound playing");
   NoiseAmp = 1000;
+  digitalWrite(SOUND_GATE_PIN, HIGH); 
   playingSound = true;
   soundStart = 0; //clear assignment
 }
@@ -8224,6 +8225,7 @@ static void playSound() {
 static void silenceSound() {
   Serial.println("Sound silenced"); 
   NoiseAmp = 0;
+  digitalWrite(SOUND_GATE_PIN, LOW); //mosfet to squelch non-signal noise from amplification
   playingSound = false;
   soundStop = 0; //clear assignment     
 }
@@ -8271,6 +8273,7 @@ void setup() {
   pinMode(SEQUENCE_BUTTON_PIN, INPUT_PULLUP);
   pinMode(TEST_BUTTON_PIN, INPUT_PULLUP);
   pinMode(TTL_OUTPUT_PIN, OUTPUT);
+  digitalWrite(SOUND_GATE_PIN, LOW); //mosfet to squelch non-signal noise from amplification
 
   Setup_DAWG(); //Due Arbitrary Waveform Generator - not my acronym haha
 }
