@@ -8346,5 +8346,5 @@ void loop() {
   }
 
   Loop_DAWG(); //Due Arbitrary Waveform Generator - not my acronym haha
-  delay(50);
+  delay(1);
 }
