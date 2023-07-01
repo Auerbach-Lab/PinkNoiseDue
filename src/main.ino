@@ -3,19 +3,33 @@
 #include <DueFlashStorage.h>
 #include <efc.h>
 #include <flash_efc.h>
+#include "costable.h"
+
+#define VOLUME 1000 //0-2000 range, arbitrary unit
+// With potentiometer set so that non-signal amplification noise is inaudible while off, rough decibels are:
+// NoiseAmp dB   NoiseAmp dB
+//       10 50         90 80
+//       20 61        100 81
+//       30 67        150 86 
+//       40 70        200 89    Values beyond 200 causes, in essence, a much faster volume transition  
+//       50 73        300 92
+//       60 75        500 94
+//       70 77       1000 95    
+//       80 78       2000 96    Momentary artifacts (signal clipping?) happen at transitions to on or off at this amplification
 
 // EDIT THESE VALUES to adjust timings on existing sequence.
 #define OFFSET 1000           // ms between steps in sequence
 #define IMAGE_DURATION 500    // ms duration of TTL signal for imaging
 #define SOUND_DURATION 5000   // ms duration of sound to play
-#define COSINE_PERIOD 500.0   // ms duration of cosine gate function, must include .0
+#define COSINE_PERIOD 500     // ms duration of cosine gate function
 
 // EDIT THIS SECTION to define sequence itself
 unsigned long currentMillis = 0;
 unsigned long imageStart[3] = {0};
 unsigned long imageStop[3] = {0};
-unsigned long soundStart = 0;
-unsigned long soundStop = 0;
+unsigned long soundToStart = 0;
+unsigned long soundStarted = 0;
+unsigned long soundToStop = 0;
 bool sendingTTL = false;
 bool playingSound = false;
 
@@ -39,15 +53,15 @@ static void sequenceHandler2(uint8_t btnId, uint8_t btnState) {
     imageStop[0] = imageStart[0] + IMAGE_DURATION;
 
     //sound
-    soundStart = imageStop[0] + OFFSET;
-    soundStop = soundStart + SOUND_DURATION;
+    soundToStart = imageStop[0] + OFFSET;
+    soundToStop = soundToStart + SOUND_DURATION;
 
     //mid-sound image
-    imageStart[1] = soundStart + (SOUND_DURATION - IMAGE_DURATION)/2;
+    imageStart[1] = soundToStart + (SOUND_DURATION - IMAGE_DURATION)/2;
     imageStop[1] = imageStart[1] + IMAGE_DURATION;
 
     //post image
-    imageStart[2] = soundStop + OFFSET;
+    imageStart[2] = soundToStop + OFFSET;
     imageStop[2] = imageStart[2] + IMAGE_DURATION;
     
   } else {
@@ -8214,13 +8228,14 @@ void dac_setup2() // DAC set-up for analogue & synchronized square wave when in 
 #define SEQUENCE_BUTTON_PIN 27
 #define TTL_OUTPUT_PIN 29
 #define MOSFET_PIN 31
-#include "costable.h" 
 
 static void playSound() {
   Serial.println("Sound playing");
-  NoiseAmp = 2000;
+  //NoiseAmp = 200; //90 dB @ 1m, but instead schedule for cosine fade
   digitalWrite(MOSFET_PIN, HIGH);
   playingSound = true;
+  soundStarted = millis(); //schedule, for cosine fade
+  soundToStart = 0; //clear assignment
 }
 
 static void silenceSound() {
@@ -8228,8 +8243,7 @@ static void silenceSound() {
   NoiseAmp = 0;
   digitalWrite(MOSFET_PIN, LOW);
   playingSound = false;
-  soundStart = 0; //clear assignment
-  soundStop = 0; //clear assignment     
+  soundToStop = 0; //clear assignment     
 }
 
 static void startImaging(unsigned int i) {
@@ -8249,13 +8263,13 @@ static void stopImaging(unsigned int i) {
 static void testHandler(uint8_t btnId, uint8_t btnState) {
   if (btnState == BTN_PRESSED) {
     Serial.println("Testing...");
-    soundStart = currentMillis;
+    soundToStart = currentMillis;
     playSound();
     startImaging(0);
   } else {
     // btnState == BTN_OPEN
     Serial.println("Test stop");
-    soundStop = currentMillis + COSINE_PERIOD;    //silenceSound();
+    soundToStop = max(currentMillis, soundStarted+COSINE_PERIOD) + COSINE_PERIOD;    //silenceSound();
     stopImaging(0);
   }
 }
@@ -8269,15 +8283,15 @@ static void sequenceHandler(uint8_t btnId, uint8_t btnState) {
     imageStop[0] = imageStart[0] + IMAGE_DURATION;
 
     //sound
-    soundStart = imageStop[0] + OFFSET;
-    soundStop = soundStart + SOUND_DURATION;
+    soundToStart = imageStop[0] + OFFSET;
+    soundToStop = soundToStart + SOUND_DURATION;
 
     //mid-sound image
-    imageStart[1] = soundStart + (SOUND_DURATION - IMAGE_DURATION)/2;
+    imageStart[1] = soundToStart + (SOUND_DURATION - IMAGE_DURATION)/2;
     imageStop[1] = imageStart[1] + IMAGE_DURATION;
 
     //post image
-    imageStart[2] = soundStop + OFFSET;
+    imageStart[2] = soundToStop + OFFSET;
     imageStop[2] = imageStart[2] + IMAGE_DURATION;
     
   } else {
@@ -8302,6 +8316,7 @@ void setup() {
   pinMode(SEQUENCE_BUTTON_PIN, INPUT_PULLUP);
   pinMode(TEST_BUTTON_PIN, INPUT_PULLUP);
   pinMode(TTL_OUTPUT_PIN, OUTPUT);
+  pinMode(MOSFET_PIN, OUTPUT);
   NoiseAmp=0;
   digitalWrite(MOSFET_PIN, LOW);
 
@@ -8312,23 +8327,22 @@ void loop() {
   pollButtons();
   currentMillis = millis();
 
-  uint16_t elapsed = currentMillis - soundStart;
+  float elapsed = currentMillis - soundStarted;
   if (playingSound && elapsed < COSINE_PERIOD) { //in cosine gate at start, fade up
     uint16_t j = constrain((COS_TABLE_SIZE-1) * (COSINE_PERIOD - elapsed) / COSINE_PERIOD, 0, COS_TABLE_SIZE-1);
-    NoiseAmp = pgm_read_word_near(cosTable + j);
+    NoiseAmp = VOLUME * pgm_read_word_near(cosTable + j) / COS_TABLE_AMPLITUDE;
     Serial.println(NoiseAmp);
-  }
-  if (playingSound && soundStop - currentMillis < COSINE_PERIOD) { //in cosine gate at end, fade down
-    uint16_t j = constrain((COS_TABLE_SIZE-1) * (currentMillis + COSINE_PERIOD - soundStop) / COSINE_PERIOD, 0, COS_TABLE_SIZE-1);
-    NoiseAmp = pgm_read_word_near(cosTable + j);
+  } else if (playingSound && soundToStop - currentMillis < COSINE_PERIOD) { //in cosine gate at end, fade down
+    uint16_t j = constrain((COS_TABLE_SIZE-1) * (currentMillis + COSINE_PERIOD - soundToStop) / COSINE_PERIOD, 0, COS_TABLE_SIZE-1);
+    NoiseAmp = VOLUME * pgm_read_word_near(cosTable + j) / COS_TABLE_AMPLITUDE;
     Serial.println(NoiseAmp);
   }
   
   for (unsigned int i=0; i < sizeof imageStart / sizeof imageStart[i]; i++) {
     if(!sendingTTL && imageStart[i] && (currentMillis > imageStart[i])) {startImaging(i);}
     else if(sendingTTL && imageStop[i] && (currentMillis > imageStop[i])) {stopImaging(i);}
-    else if(!playingSound && soundStart && (currentMillis > soundStart)) {playSound();}
-    else if(playingSound && soundStop && (currentMillis > soundStop)) {silenceSound();}
+    else if(!playingSound && soundToStart && (currentMillis > soundToStart)) {playSound();}
+    else if(playingSound && soundToStop && (currentMillis > soundToStop)) {silenceSound();}
   }
 
   Loop_DAWG(); //Due Arbitrary Waveform Generator - not my acronym haha
