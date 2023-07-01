@@ -1,6 +1,7 @@
 #define COS_TABLE_SIZE 2048
-#define COS_TABLE_AMPLITUDE 2000
-//first quarter of cosine (0-90 degrees), scaled to maximum amplitude of 1000
+#define COS_TABLE_AMPLITUDE 1000 //maximum amplitude in table
+
+//first quarter of cosine (0-90 degrees)
 static const uint16_t PROGMEM cosTable[COS_TABLE_SIZE] = {
 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 
 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 999,  999,  
