@@ -8,6 +8,7 @@
 #define OFFSET 1000           // ms between steps in sequence
 #define IMAGE_DURATION 500    // ms duration of TTL signal for imaging
 #define SOUND_DURATION 5000   // ms duration of sound to play
+#define COSINE_PERIOD 500.0   // ms duration of cosine gate function, must include .0
 
 // EDIT THIS SECTION to define sequence itself
 unsigned long currentMillis = 0;
@@ -29,7 +30,7 @@ bool playingSound = false;
 [offset]          8.5 s  post-sound imaging starts
 [image duration]  9.0 s  post-sound imaging stops*/
 
-static void sequenceHandler(uint8_t btnId, uint8_t btnState) {
+static void sequenceHandler2(uint8_t btnId, uint8_t btnState) {
   if ((btnState == BTN_PRESSED) && !imageStop[2]) {
     Serial.println("Pressed sequence button");
     
@@ -8212,24 +8213,22 @@ void dac_setup2() // DAC set-up for analogue & synchronized square wave when in 
 #define TEST_BUTTON_PIN 25
 #define SEQUENCE_BUTTON_PIN 27
 #define TTL_OUTPUT_PIN 29
-#define SOUND_GATE_PIN 33 //burned 31 on the board I'm using
-#define SOUND_GATE_PIN2 35 
+#define MOSFET_PIN 31
+#include "costable.h" 
 
 static void playSound() {
   Serial.println("Sound playing");
   NoiseAmp = 2000;
-  digitalWrite(SOUND_GATE_PIN, HIGH); 
-  digitalWrite(SOUND_GATE_PIN2, HIGH); 
+  digitalWrite(MOSFET_PIN, HIGH);
   playingSound = true;
-  soundStart = 0; //clear assignment
 }
 
 static void silenceSound() {
   Serial.println("Sound silenced"); 
   NoiseAmp = 0;
-  digitalWrite(SOUND_GATE_PIN, LOW); //mosfet to squelch non-signal noise from amplification
-  digitalWrite(SOUND_GATE_PIN2, LOW);
+  digitalWrite(MOSFET_PIN, LOW);
   playingSound = false;
+  soundStart = 0; //clear assignment
   soundStop = 0; //clear assignment     
 }
 
@@ -8250,13 +8249,40 @@ static void stopImaging(unsigned int i) {
 static void testHandler(uint8_t btnId, uint8_t btnState) {
   if (btnState == BTN_PRESSED) {
     Serial.println("Testing...");
+    soundStart = currentMillis;
     playSound();
     startImaging(0);
   } else {
     // btnState == BTN_OPEN
     Serial.println("Test stop");
-    silenceSound();
+    soundStop = currentMillis + COSINE_PERIOD;    //silenceSound();
     stopImaging(0);
+  }
+}
+
+static void sequenceHandler(uint8_t btnId, uint8_t btnState) {
+  if ((btnState == BTN_PRESSED) && !imageStop[2]) {
+    Serial.println("Pressed sequence button");
+    
+    //pre image
+    imageStart[0] = millis() + OFFSET;
+    imageStop[0] = imageStart[0] + IMAGE_DURATION;
+
+    //sound
+    soundStart = imageStop[0] + OFFSET;
+    soundStop = soundStart + SOUND_DURATION;
+
+    //mid-sound image
+    imageStart[1] = soundStart + (SOUND_DURATION - IMAGE_DURATION)/2;
+    imageStop[1] = imageStart[1] + IMAGE_DURATION;
+
+    //post image
+    imageStart[2] = soundStop + OFFSET;
+    imageStop[2] = imageStart[2] + IMAGE_DURATION;
+    
+  } else {
+    // btnState == BTN_OPEN.
+    Serial.println("Released sequence button");
   }
 }
 
@@ -8276,43 +8302,29 @@ void setup() {
   pinMode(SEQUENCE_BUTTON_PIN, INPUT_PULLUP);
   pinMode(TEST_BUTTON_PIN, INPUT_PULLUP);
   pinMode(TTL_OUTPUT_PIN, OUTPUT);
-  pinMode(SOUND_GATE_PIN, OUTPUT);
-  pinMode(SOUND_GATE_PIN2, OUTPUT);
-  digitalWrite(SOUND_GATE_PIN, LOW);
-  digitalWrite(SOUND_GATE_PIN2, LOW); //mosfet to squelch non-signal noise from amplification
   NoiseAmp=0;
-
+  digitalWrite(MOSFET_PIN, LOW);
 
   Setup_DAWG(); //Due Arbitrary Waveform Generator - not my acronym haha
 }
 
-void loop() { // nothing here for ongoing pink noise, all driven by ISR
+void loop() { 
   pollButtons();
   currentMillis = millis();
+
+  uint16_t elapsed = currentMillis - soundStart;
+  if (playingSound && elapsed < COSINE_PERIOD) { //in cosine gate at start, fade up
+    uint16_t j = constrain((COS_TABLE_SIZE-1) * (COSINE_PERIOD - elapsed) / COSINE_PERIOD, 0, COS_TABLE_SIZE-1);
+    NoiseAmp = pgm_read_word_near(cosTable + j);
+    Serial.println(NoiseAmp);
+  }
+  if (playingSound && soundStop - currentMillis < COSINE_PERIOD) { //in cosine gate at end, fade down
+    uint16_t j = constrain((COS_TABLE_SIZE-1) * (currentMillis + COSINE_PERIOD - soundStop) / COSINE_PERIOD, 0, COS_TABLE_SIZE-1);
+    NoiseAmp = pgm_read_word_near(cosTable + j);
+    Serial.println(NoiseAmp);
+  }
   
   for (unsigned int i=0; i < sizeof imageStart / sizeof imageStart[i]; i++) {
-    // Serial.print(currentMillis);
-    // Serial.print(" ");
-    // Serial.print(i);
-    
-    // Serial.print("     image:");
-    // Serial.print(sendingTTL);
-    // Serial.print(" ");
-    // Serial.print(imageStart[i]);
-    // Serial.print(" ");
-    // Serial.print(imageStop[i]);
-
-
-    // Serial.print("     audio:");
-    // Serial.print(playingSound);
-    // Serial.print(" ");
-    // Serial.print(soundStart);
-    // Serial.print(" ");
-    // Serial.print(soundStop);
-    
-    // Serial.println("");
-
-
     if(!sendingTTL && imageStart[i] && (currentMillis > imageStart[i])) {startImaging(i);}
     else if(sendingTTL && imageStop[i] && (currentMillis > imageStop[i])) {stopImaging(i);}
     else if(!playingSound && soundStart && (currentMillis > soundStart)) {playSound();}
@@ -8320,5 +8332,5 @@ void loop() { // nothing here for ongoing pink noise, all driven by ISR
   }
 
   Loop_DAWG(); //Due Arbitrary Waveform Generator - not my acronym haha
-  delay(10);
+  delay(50);
 }
