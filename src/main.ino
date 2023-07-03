@@ -8189,7 +8189,7 @@ void dac_setup2() // DAC set-up for analogue & synchronized square wave when in 
 #define SEQUENCE_BUTTON_PIN 27
 #define SEQUENCE_LED_PIN 29
 #define TTL_OUTPUT_PIN 31
-#define MOSFET_PIN 33
+#define RELAY_PIN 33
 #define STOP_BUTTON_PIN 35
 
 
@@ -8203,7 +8203,7 @@ unsigned long sequenceToStop = 0;
 static void playSound(int i) {
   Serial.println("Sound playing");
   //NoiseAmp = 200; //90 dB @ 1m, but instead schedule for cosine fade
-  digitalWrite(MOSFET_PIN, HIGH);
+  digitalWrite(RELAY_PIN, HIGH);
   digitalWrite(TTL_OUTPUT_PIN, HIGH);
   soundStartedAt = currentMillis; //schedule, for cosine fade
   soundStopsAt = soundToStop[i];
@@ -8213,7 +8213,7 @@ static void playSound(int i) {
 static void silenceSound(int i) {
   Serial.println("Sound silenced"); 
   NoiseAmp = 0;
-  digitalWrite(MOSFET_PIN, LOW);
+  digitalWrite(RELAY_PIN, LOW);
   digitalWrite(TTL_OUTPUT_PIN, LOW);
   soundStartedAt = 0; //clear indication that sound is playing
   soundStopsAt = 0;
@@ -8292,8 +8292,8 @@ void setup() {
   pinMode(STOP_BUTTON_PIN, INPUT_PULLUP);
   pinMode(SEQUENCE_LED_PIN, OUTPUT);
   pinMode(TTL_OUTPUT_PIN, OUTPUT);
-  pinMode(MOSFET_PIN, OUTPUT);
-  digitalWrite(MOSFET_PIN, LOW);
+  pinMode(RELAY_PIN, OUTPUT);
+  digitalWrite(RELAY_PIN, LOW);
   NoiseAmp=0;
 
   Setup_DAWG(); //Due Arbitrary Waveform Generator - not my acronym haha
