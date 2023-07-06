@@ -19,7 +19,7 @@ unsigned const int SOUND_COUNT = (RECORDING_DURATION - 2*BOOKEND_DURATION + GAP_
 
 // EDIT THIS to define software volume
 #define VOLUME 200 //0-2000 range, arbitrary unit
-// With potentiometer set so that non-signal amplification noise is inaudible while off, rough decibels are:
+// With trim potentiometer set so that non-signal amplification noise is inaudible while off (bypassing the relay), rough decibels are:
 // NoiseAmp dB   NoiseAmp dB
 //       10 50         90 80
 //       20 61        100 81
