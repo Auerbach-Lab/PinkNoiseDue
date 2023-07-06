@@ -56,7 +56,7 @@ Real world results show spectrally-accurate pink noise in the range of 6.5-25 kH
 ## Programming
 Repository: https://github.com/Auerbach-Lab/PinkNoiseDue
 
- 1. Install [PlatformIO for VSCode](https://platformio.org/install/ide?install=vscode) or for the [editor of your choice](https://platformio.org/install/integration) (including Atom, Eclipse, Emacs, Vim, SublimeText, etc). ([instructions](https://docs.platformio.org/en/stable/integration/ide/vscode.html#quick-start))
+ 1. Install [PlatformIO for VSCode](https://platformio.org/install/ide?install=vscode) or for the [editor of your choice](https://platformio.org/install/integration). ([instructions](https://docs.platformio.org/en/stable/integration/ide/vscode.html#quick-start))
  2. Clone the repository above ([instructions](https://code.visualstudio.com/docs/sourcecontrol/github))
  3. Edit `main.ino`, located in the `src` directory. Near the top of that file:
 ```
