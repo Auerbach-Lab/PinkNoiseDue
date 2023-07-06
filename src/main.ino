@@ -6,9 +6,9 @@
 #include "costable.h"
 
 // EDIT THESE VALUES to adjust timings on sequence
-#define RECORDING_DURATION  600000   // ms duration of entire recording sequence, must be at least BOOKEND_DURATION * 2 + SOUND_DURATION for a single sound
-#define BOOKEND_DURATION    120000   // ms duration of silence at beginning and end, must be less than 1/2 RECORDING_DURATION
-#define GAP_DURATION         30000   // ms between sounds
+#define RECORDING_DURATION  60000   // ms duration of entire recording sequence, must be at least BOOKEND_DURATION * 2 + SOUND_DURATION for a single sound
+#define BOOKEND_DURATION    12000   // ms duration of silence at beginning and end, must be less than 1/2 RECORDING_DURATION
+#define GAP_DURATION         3000   // ms between sounds
 #define SOUND_DURATION        5000   // ms duration of sound to play
 #define COSINE_PERIOD          500   // ms duration of cosine gate function, must be less than or equal to 1/2 SOUND_DURATION
 
@@ -8224,9 +8224,10 @@ static void startSequence() {
   Serial.println("Sequence starts"); 
   digitalWrite(SEQUENCE_LED_PIN, HIGH);
   for (unsigned int i=0; i < SOUND_COUNT; i++) {
-    soundToStart[i] = i * (SOUND_DURATION + GAP_DURATION) + BOOKEND_DURATION;
+    soundToStart[i] = currentMillis + i * (SOUND_DURATION + GAP_DURATION) + BOOKEND_DURATION;
     soundToStop[i] = soundToStart[i] + SOUND_DURATION;
   }
+  sequenceToStop = currentMillis + RECORDING_DURATION;
 }
 
 static void stopSequence() {
@@ -8256,7 +8257,11 @@ static void testHandler(uint8_t btnId, uint8_t btnState) {
 static void sequenceHandler(uint8_t btnId, uint8_t btnState) {
   if ((btnState == BTN_PRESSED) && !soundToStop[SOUND_COUNT]) {
     Serial.println("Pressed sequence button");
-    startSequence();
+    if(sequenceToStop) {
+      Serial.println("Sequence already active");
+    } else {
+      startSequence();
+    }
   } else { // btnState == BTN_OPEN.
     Serial.println("Released sequence button");
   }
