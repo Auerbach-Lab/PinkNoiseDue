@@ -19,11 +19,11 @@ This is an arduino-based pink noise generator that sends a TTL signal while audi
  4.  In the left pane of the RWD Photometry software ([manual](https://www.rwdstco.com/wp-content/uploads/2021/10/R820-Tricolor-Multichannel-Fiber-Photometry-System-User-Manual_A-0831-02.pdf)), scroll down to find the "Event/Output Setting" section. **Make sure that "Hardware" is checked** to enable the incoming TTL signal to annotate the recording. 
  5. Start the recording in the photometry software and press the green START button on the control box to begin the pre-programmed 10 minute sequence. 
  
-**LED Indicators**
+**LED Indicators**<br>
 Green LED illuminates to indicate that the sequence is active. 
 Blue LED illuminates when TTL is being transmitted, i.e. when a sound is playing.
 
-**Button Details**
+**Button Details**<br>
 To test the device, press the black TEST button. The blue LED will activate, indicating sound is playing and a TTL signal is being sent. 
 - Verify the volume is acceptable using a meter or a smartphone (suggested app: DecibelX for [Android](https://play.google.com/store/apps/details?id=com.skypaw.decibel&hl=en_US&gl=US) or [iOS](https://apps.apple.com/us/app/decibel-x-db-sound-level-meter/id448155923)).
 - Verify that the TTL signal is being received by starting a recording in the RWD Photometry software and watching the color highlight appear during the recording while TEST is depressed.
@@ -32,16 +32,15 @@ Pressing START while a sequence is already running has no effect.
 
 Press the red ABORT button to cancel a running sequence and immediately silence any sounds.
 
-**Volume**
+**Volume**<br>
 To adjust the volume in software, edit `#define VOLUME 200` near the top of main.ino. See the rough decibel correspondence in the chart immediately following this line.
 
-To adjust the volume in hardware, use the trim potentiometer on the underside of the control box, using a flat eyeglasses screwdriver or similar implement. There is a very small usable range for adjustments; as little as 2 degrees of turn will produce several dB of change within this range. Most positions the trimmer can be set to leave the speaker at maximum volume. Use this adjustment sparingly; trim pots are generally only rated for a 200 cycle lifespan.
+To adjust the volume in hardware, use the trim potentiometer on the underside of the control box, using a flat eyeglasses screwdriver or similar implement. There is a very small usable range for adjustments; as little as 2 degrees of turn will produce several dB of change within this range. Most positions the trimmer can be set to leave the speaker at maximum volume. **Use this adjustment sparingly**; trim pots are generally only rated for a 200 cycle lifespan.
 
 ![A photograph of the underside of the control box, showing the cutout to access the volume trim potentiometer](https://raw.githubusercontent.com/Auerbach-Lab/PinkNoiseDue/7478535de894f6554dea8b48933255e167ce98e0/docs/control_box_underside.jpg?token=GHSAT0AAAAAACAWGXVKO5XCKNZ22WOZ7NEGZFGNIVQ)
 
 
 ## Sound Sequence
-
  - 120 seconds of silence
  - 355 seconds of 5-second bursts of pink noise that are cosine gated in and out across 500 ms, then 30 seconds of silence (11 bursts, 10 silent periods)
  - 120 seconds of silence
@@ -110,7 +109,7 @@ C:\Users\USERNAME\.platformio\penv\Scripts\platformio.exe device monitor -b 1152
 
 
 ## Sources
-**Due Arbitrary Waveform Generator**
-Bruce Evans, 2017
-Create arbitrary waves, classic waves, noise or even music - and the Due will generate it.
+**Due Arbitrary Waveform Generator**<br>
+Bruce Evans, 2017<br>
+Create arbitrary waves, classic waves, noise or even music - and the Due will generate it.<br>
 https://projecthub.arduino.cc/BruceEvans/4281674f-b6ae-4d5c-af6a-2fe70bb86825
