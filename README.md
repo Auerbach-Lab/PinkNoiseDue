@@ -9,7 +9,7 @@
 ## Description
 This is an arduino-based pink noise generator that sends a TTL signal while audio is playing. It was constructed for use with the RWD R820 photometry system, but is compatible with any devices that accept TTL signals. The specific sequence and timing of signals can be adjusted in software. 
 
-![A photograph of the control box and the speaker, showing the test, start, and abort buttons and the blue and green LEDs](https://raw.githubusercontent.com/Auerbach-Lab/PinkNoiseDue/7478535de894f6554dea8b48933255e167ce98e0/docs/pink_noise_generator.jpg?token=GHSAT0AAAAAACAWGXVK76VXROSJHU5K4STOZFGNJEQ)
+![A photograph of the control box and the speaker, showing the test, start, and abort buttons and the blue and green LEDs](https://github.com/Auerbach-Lab/PinkNoiseDue/blob/7478535de894f6554dea8b48933255e167ce98e0/docs/pink_noise_generator.jpg?raw=true)
 
 
 ## Usage
@@ -37,7 +37,7 @@ To adjust the volume in software, edit `#define VOLUME 200` near the top of main
 
 To adjust the volume in hardware, use the trim potentiometer on the underside of the control box, using a flat eyeglasses screwdriver or similar implement. There is a very small usable range for adjustments; as little as 2 degrees of turn will produce several dB of change within this range. Most positions the trimmer can be set to leave the speaker at maximum volume. **Use this adjustment sparingly**; trim pots are generally only rated for a 200 cycle lifespan.
 
-![A photograph of the underside of the control box, showing the cutout to access the volume trim potentiometer](https://raw.githubusercontent.com/Auerbach-Lab/PinkNoiseDue/7478535de894f6554dea8b48933255e167ce98e0/docs/control_box_underside.jpg?token=GHSAT0AAAAAACAWGXVKO5XCKNZ22WOZ7NEGZFGNIVQ)
+![A photograph of the underside of the control box, showing the cutout to access the volume trim potentiometer](https://github.com/Auerbach-Lab/PinkNoiseDue/blob/7478535de894f6554dea8b48933255e167ce98e0/docs/control_box_underside.jpg?raw=true)
 
 
 ## Sound Sequence
@@ -49,7 +49,7 @@ To adjust the volume in hardware, use the trim potentiometer on the underside of
 ## Sound Spectral Quality
 Real world results show spectrally-accurate pink noise in the range of 6.5-25 kHz, and possibly beyond (smartphone app does not support measurements in frequencies above 25 kHz). Between 3-6.5 kHz intensity is mostly uniform, i.e. white noise. Intensity falls off below 3 kHz to levels undistinguishable from ambient at 750 Hz. 
 
-![Screenshot from the Spectroid app showing a linear falloff of intensity vs frequency in the range of 6.5-25 kHz, with reference levels of -30 dB @ 6.5 kHz to -75 dB @ 25 kHz](https://raw.githubusercontent.com/Auerbach-Lab/PinkNoiseDue/7478535de894f6554dea8b48933255e167ce98e0/docs/pink_noise_spectral.png?token=GHSAT0AAAAAACAWGXVKXTQ7REA2ZXSONFE2ZFGNJRA)
+![Screenshot from the Spectroid app showing a linear falloff of intensity vs frequency in the range of 6.5-25 kHz, with reference levels of -30 dB @ 6.5 kHz to -75 dB @ 25 kHz](https://github.com/Auerbach-Lab/PinkNoiseDue/blob/7478535de894f6554dea8b48933255e167ce98e0/docs/pink_noise_spectral.png?raw=true)
 
 
 ## Programming
