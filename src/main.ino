@@ -8212,8 +8212,8 @@ static void playSound(int i) {
 
 static void silenceSound(int i) {
   Serial.println("Sound silenced"); 
-  NoiseAmp = 0;
-  digitalWrite(RELAY_PIN, LOW);
+  //DEBUG (WAS UNCOMMENTED) NoiseAmp = 0;
+  //DEBUG (WAS UNCOMMENTED) digitalWrite(RELAY_PIN, LOW);
   digitalWrite(TTL_OUTPUT_PIN, LOW);
   soundStartedAt = 0; //clear indication that sound is playing
   soundStopsAt = 0;
@@ -8298,8 +8298,8 @@ void setup() {
   pinMode(SEQUENCE_LED_PIN, OUTPUT);
   pinMode(TTL_OUTPUT_PIN, OUTPUT);
   pinMode(RELAY_PIN, OUTPUT);
-  digitalWrite(RELAY_PIN, LOW);
-  NoiseAmp=0;
+  digitalWrite(RELAY_PIN, HIGH); //DEBUG (WAS LOW))
+  NoiseAmp=VOLUME; //DEBUG (WAS 0)
 
   Setup_DAWG(); //Due Arbitrary Waveform Generator - not my acronym haha
 }
@@ -8317,11 +8317,11 @@ void loop() {
   float elapsed = currentMillis - soundStartedAt; //float so we get reasonable math below rather than integer math
   if (soundStartedAt && elapsed < COSINE_PERIOD) { //in cosine gate at start, fade up
     uint16_t j = constrain((COS_TABLE_SIZE-1) * (COSINE_PERIOD - elapsed) / COSINE_PERIOD, 0, COS_TABLE_SIZE-1);
-    NoiseAmp = VOLUME * pgm_read_word_near(cosTable + j) / COS_TABLE_AMPLITUDE;
+    //DEBUG WAS UNCOMMENTED NoiseAmp = VOLUME * pgm_read_word_near(cosTable + j) / COS_TABLE_AMPLITUDE;
     //Serial.println(NoiseAmp);
   } if (soundStartedAt && soundStopsAt - currentMillis < COSINE_PERIOD) { //in cosine gate at end, fade down
     uint16_t j = constrain((COS_TABLE_SIZE-1) * (currentMillis + COSINE_PERIOD - soundStopsAt) / COSINE_PERIOD, 0, COS_TABLE_SIZE-1);
-    NoiseAmp = VOLUME * pgm_read_word_near(cosTable + j) / COS_TABLE_AMPLITUDE;
+    //DEBUG WAS UNCOMMENTED NoiseAmp = VOLUME * pgm_read_word_near(cosTable + j) / COS_TABLE_AMPLITUDE;
     //Serial.println(NoiseAmp);
   }
 
