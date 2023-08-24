@@ -159,10 +159,13 @@ void setup() {
   UserChars[1] = '0'; //set serial input to mimic 'w0' ie change to waveform 0 ie sinusoidal
   ChangeWaveShape(true);
   
-  UserInput = 1000; //set serial input to mimic '1000h' ie change to 1000 Hz frequency
+  UserInput = 4000; //set serial input to mimic '4000h' ie change to 4000 Hz frequency
   SetFreqPeriod();
 
-  SinAmp=0.10; //change volume and recalculate wave
+  if (!ExactFreqMode) ToggleExactFreqMode(); //exact freq mode is needed for software volume control, otherwise we copy entire buffer at a time in
+
+  //SinAmp=0.10; //change volume and recalculate wave
+  WaveAmp=1000000;
   CreateNewWave();
 }
 

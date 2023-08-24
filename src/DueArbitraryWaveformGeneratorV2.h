@@ -70,5 +70,7 @@ void dac_setup2();
 
 extern uint16_t NoiseAmp;
 extern float    SinAmp;
+extern uint32_t WaveAmp;
 extern char     UserChars[5];
 extern double   UserInput;
+extern volatile boolean ExactFreqMode;
