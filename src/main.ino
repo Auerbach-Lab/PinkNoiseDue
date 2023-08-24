@@ -151,9 +151,19 @@ void setup() {
   pinMode(TTL_OUTPUT_PIN, OUTPUT);
   pinMode(RELAY_PIN, OUTPUT);
   digitalWrite(RELAY_PIN, HIGH); //DEBUG (WAS LOW))
-  NoiseAmp=VOLUME; //DEBUG (WAS 0)
 
   Setup_DAWG(); //Due Arbitrary Waveform Generator - not my acronym haha
+  NoiseAmp=VOLUME; //DEBUG (WAS 0) -- this only controls noise (not waveform) amplitude
+
+  // TONES
+  UserChars[1] = '0'; //set serial input to mimic 'w0' ie change to waveform 0 ie sinusoidal
+  ChangeWaveShape(true);
+  
+  UserInput = 1000; //set serial input to mimic '1000h' ie change to 1000 Hz frequency
+  SetFreqPeriod();
+
+  SinAmp=0.10; //change volume and recalculate wave
+  CreateNewWave();
 }
 
 void loop() { 
