@@ -3329,6 +3329,14 @@ void Loop_DAWG()
                     Serial.println("");
                   }
                   break;
+                  case 'w': // if received s0w
+                  WaveAmp = UserInput;
+                  if (!UsingGUI) {
+                    Serial.print("   Wave Amplification is ");
+                    Serial.println(UserInput);
+                    Serial.println("");
+                  }
+                  break;
                 case 'v': // if received s0v
                   SinVshift = UserInput / 100.0;
                   if (!UsingGUI) {
@@ -3375,6 +3383,7 @@ void Loop_DAWG()
                     Serial.println("\n   Sine Wave Commands: (Wave Shape 0)");
                     Serial.println(  "   Type a number followed by:");
                     Serial.println(  "   s0a - for Amplitude      (eg: 100 means 100%, which is default = 100s0a)");
+                    Serial.println(  "   s0w - for WaveAmp           (eg: 1 000 000 means 100%, which is default)");
                     Serial.println(  "   s0v - for Vertical shift                              (default =  50s0v)");
                     Serial.println(  "   s0p - for Phase shift relative to sync'ed square wave (default = 0.5s0p)");
                     Serial.println(  "   s0f - for 2nd sine wave Frequency mulptile              (default = 8s0f)");
@@ -3382,7 +3391,7 @@ void Loop_DAWG()
                     Serial.println(  "   s0* - to Multiply waves - mix: 0 to 100     (50 = both) (default = 0s0*)");
                     Serial.println(  "   Hint: 50s0* = ring modulation. 76s0* = amplitude mod. 100s0* = 2nd wave");
                     Serial.println(  "   Current values: ");
-                    Serial.print(    "   Amplitude = "); Serial.print(SinAmp * 100, 0); Serial.print(", Bias = "); Serial.print(SinVshift * 100, 0); Serial.print(", Phase = "); Serial.println(SinPhase);
+                    Serial.print(    "   Amplitude = "); Serial.print(SinAmp * 100, 0); Serial.print(    "   WaveAmp = "); Serial.print(WaveAmp, 0); Serial.print(", Bias = "); Serial.print(SinVshift * 100, 0); Serial.print(", Phase = "); Serial.println(SinPhase);
                     Serial.print(    "   Freq multiple = "); Serial.print(SinFreq2, 0); Serial.print(", Add waves Mix = "); Serial.print(SinAddMix, 0); Serial.print(", Multiply waves Mix = "); Serial.println(SinMulMix, 0); Serial.println("\n");
                   }
                   //  break;
