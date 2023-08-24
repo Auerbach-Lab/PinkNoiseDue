@@ -165,7 +165,7 @@ void setup() {
   if (!ExactFreqMode) ToggleExactFreqMode(); //exact freq mode is needed for software volume control, otherwise we copy entire buffer at a time in
 
   //SinAmp=0.10; //change volume and recalculate wave
-  WaveAmp=1000000;
+  WaveAmp=1000000; //1,000,000 = 100% volume. TODO: May need to turn NoiseAmp into a uint32_t as well
   CreateNewWave();
 }
 
