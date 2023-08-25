@@ -55,7 +55,7 @@ unsigned long currentMillis = 0;
 unsigned long sequenceToStop = 0;
 
 Adafruit_DS1841 ds; //logarithmic potentiometer DS1841
-uint8_t potentiometerTap; //controls output of potentiometer, 0-127
+int8_t potentiometerTap; //controls output of potentiometer, 0-127
 extern TwoWire Wire1; // use SCL1 & SDA1 for I2c to potentiometer
 
 static void playSound(int i) {
@@ -164,9 +164,11 @@ void setup() {
   
   // Try to initialize!
   Wire1.begin();        // join i2c bus
+  delay(10);
   while (!ds.begin(0x28, &Wire1)) {
     Serial.println("Failed to find DS1841 chip");
-    delay(10);
+    Wire1.begin(); 
+    delay(100);
   }
   potentiometerTap = 0;
   ds.setWiper(potentiometerTap);
@@ -195,8 +197,8 @@ void setup() {
 void loop() { 
   pollButtons();
   currentMillis = millis();
-  potentiometerTap=potentiometerTap+1 & 0b01111111;
-  ds.setWiper(potentiometerTap);
+  potentiometerTap=currentMillis / 50 % 256;
+  ds.setWiper(abs(potentiometerTap));
   Serial.print("Wiper: ");Serial.print(ds.getWiper());Serial.println(" LSB");
 
   for (unsigned int i=0; i < SOUND_COUNT; i++) {
