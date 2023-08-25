@@ -149,6 +149,7 @@ static void pollButtons() {
 float wiper_voltage;
 Adafruit_DS1841  ds;
 uint8_t tap;
+extern TwoWire Wire1;// use SCL1 & SDA1
 
 float wiperVoltage(void) {
   float wiper_value = analogRead(VOLTAGE_DIV_PIN);
@@ -173,12 +174,13 @@ void setup(void) {
   analogReadResolution(12);
   analogWriteResolution(12);
   Serial.begin(115200);
+  Wire1.begin();        // join i2c bus
   while (!Serial) delay(10);     // will pause Zero, Leonardo, etc until serial console opens
 
   Serial.println("Adafruit DS1841 test!");
 
   // Try to initialize!
-  if (!ds.begin()) {
+  if (!ds.begin(0x28, &Wire1)) {
     Serial.println("Failed to find DS1841 chip");
     while (1) { delay(10); }
   }
