@@ -296,7 +296,7 @@ uint16_t NoiseFil   = 100;  // Main low pass filter - balance
 uint16_t NoiseHFB   = 0;    // High freq boost - balance
 uint16_t NoiseLFC   = 15;   // Low freq boost - cut-off freq
 /********************************************************/
-uint32_t WaveAmp     = 1048576;  // WaveAmp multiplier used in exact-freq mode for 'live' software volume control
+uint32_t WaveAmp     = 65536;  // WaveAmp multiplier used in exact-freq mode for 'live' software volume control
 // For Setup parameters:
 byte     NumWS       = 4;    // Number of WaveShapes including Noise (5 counting wave 0)
 // WaveShape 0 - Sine Wave:
@@ -6665,38 +6665,10 @@ void TC1_Handler() // used for Unsynchronized Square Wave when below 163Hz (200,
 
 void DACC_Handler(void) // write analogue & synchronized square wave to DAC with DMA - Fast Mode
 {
-  if      (FastMode == 3) {
-    uint32_t waveWithAmp[16];
-    for(int i=0; i<16; i++) {
-      waveWithAmp[i] = Wave3[!WaveHalf][i] * WaveAmp >> 10;
-    }
-    //DACC->DACC_TNPR = (uint32_t) Wave3[!WaveHalf]; // if (FastMode == 3) // next DMA buffer
-    DACC->DACC_TNPR = *waveWithAmp;
-  }
-  else if (FastMode == 2) {
-    uint32_t waveWithAmp[40];
-    for(int i=0; i<40; i++) {
-      waveWithAmp[i] = Wave2[!WaveHalf][i] * WaveAmp >> 10;
-    }
-    //DACC->DACC_TNPR = (uint32_t) Wave2[!WaveHalf]; // if (FastMode == 2) // next DMA buffer
-    DACC->DACC_TNPR = *waveWithAmp;
-  }
-  else if (FastMode == 1) {
-    uint32_t waveWithAmp[80];
-    for(int i=0; i<80; i++) {
-      waveWithAmp[i] = Wave1[!WaveHalf][i] * WaveAmp >> 10;
-    }
-    //DACC->DACC_TNPR = (uint32_t) Wave1[!WaveHalf]; // if (FastMode == 1) // next DMA buffer
-    DACC->DACC_TNPR = *waveWithAmp;
-  }
-  else if (FastMode == 0) {
-    uint32_t waveWithAmp[160];
-    for(int i=0; i<160; i++) {
-      waveWithAmp[i] = Wave0[!WaveHalf][i] * WaveAmp >> 10;
-    }
-    //DACC->DACC_TNPR = (uint32_t) Wave0[!WaveHalf]; // if (FastMode == 0) // next DMA buffer
-    DACC->DACC_TNPR = *waveWithAmp;
-  }
+  if      (FastMode == 3) DACC->DACC_TNPR = (uint32_t) Wave3[!WaveHalf]; // if (FastMode == 3) // next DMA buffer
+  else if (FastMode == 2) DACC->DACC_TNPR = (uint32_t) Wave2[!WaveHalf]; // if (FastMode == 2) // next DMA buffer
+  else if (FastMode == 1) DACC->DACC_TNPR = (uint32_t) Wave1[!WaveHalf]; // if (FastMode == 1) // next DMA buffer
+  else if (FastMode == 0) DACC->DACC_TNPR = (uint32_t) Wave0[!WaveHalf]; // if (FastMode == 0) // next DMA buffer
   DACC->DACC_TNCR = Duty[!WaveHalf][max(0, FastMode)]; // number of counts until Handler re-triggered (when next half cycle finished)
   if (MinOrMaxWaveDuty) // if duty set to 0 or 100
   {
@@ -6748,8 +6720,8 @@ void TC0_Handler() // write analogue & synchronized square wave to DAC & pin 3 -
       else if (!ExactFreqMode) WaveBit = 1; // if not in exact freq mode reset to 1, allowing next update to be lower at 0 (necessary for very low duty cycle)
       if (MinOrMaxWaveDuty) // if duty set to 0 or 100
       {
-        if (!WaveHalf) DACC->DACC_CDR = (int16_t) (WaveFull2[WaveBit / 1048576] * WaveAmp >> 10); // if displaying 2nd wave half only (just passed end), write to DAC (1048576 = 4294967296 / 4096)
-        else           DACC->DACC_CDR = (int16_t) (WaveFull[WaveBit / 1048576] * WaveAmp >> 10); // if displaying 1st wave half only (just passed end), write to DAC
+        if (!WaveHalf) DACC->DACC_CDR = (int16_t) (WaveFull2[WaveBit >> 20] * WaveAmp >> 16); // if displaying 2nd wave half only (just passed end), write to DAC (1048576 = 4294967296 / 4096)
+        else           DACC->DACC_CDR = (int16_t) (WaveFull[WaveBit >> 20] * WaveAmp >> 16); // if displaying 1st wave half only (just passed end), write to DAC
         if (SquareWaveSync)
         {
           if (WaveHalf) // if duty set to 100
@@ -6772,7 +6744,7 @@ void TC0_Handler() // write analogue & synchronized square wave to DAC & pin 3 -
       {
         if (WaveHalf)
         {
-          DACC->DACC_CDR = (int16_t) (WaveFull2[WaveBit / 1048576] * WaveAmp >> 10); // if 2nd wave half (just passed end of 1st half), write to DAC (1048576 = 4294967296 / 4096)
+          DACC->DACC_CDR = (int16_t) (WaveFull2[WaveBit >> 20] * WaveAmp >> 16); // if 2nd wave half (just passed end of 1st half), write to DAC (1048576 = 4294967296 / 4096)
           if (SquareWaveSync)
           {
             TC2->TC_CHANNEL[1].TC_CMR = TC_CMR_WAVE | TC_CMR_ASWTRG_CLEAR; // set TIOA (sq. wave on pin 3) LOW when triggered (on next line)
@@ -6781,7 +6753,7 @@ void TC0_Handler() // write analogue & synchronized square wave to DAC & pin 3 -
         }
         else
         {
-          DACC->DACC_CDR = (int16_t) (WaveFull[WaveBit / 1048576] * WaveAmp >> 10); // if 1st wave half (just passed end of 2nd half), write to DAC (1048576 = 4294967296 / 4096)
+          DACC->DACC_CDR = (int16_t) (WaveFull[WaveBit >> 20] * WaveAmp >> 16); // if 1st wave half (just passed end of 2nd half), write to DAC (1048576 = 4294967296 / 4096)
           if (SquareWaveSync)
           {
             TC2->TC_CHANNEL[1].TC_CMR = TC_CMR_WAVE | TC_CMR_ASWTRG_SET; // set TIOA (sq. wave on pin 3) HIGH when triggered (on next line)
@@ -6793,8 +6765,8 @@ void TC0_Handler() // write analogue & synchronized square wave to DAC & pin 3 -
     }
     else // if not end of wave half
     {
-      if (!WaveHalf) DACC->DACC_CDR = (int16_t) (WaveFull2[WaveBit / 1048576] * WaveAmp >> 10); // if 2nd wave half, write to DAC (1048576 = 4294967296 / 4096)
-      else           DACC->DACC_CDR = (int16_t) (WaveFull[WaveBit / 1048576] * WaveAmp >> 10); // if 1st wave half, write to DAC (1048576 = 4294967296 / 4096)
+      if (!WaveHalf) DACC->DACC_CDR = (int16_t) (WaveFull2[WaveBit >> 20] * WaveAmp >> 16); // if 2nd wave half, write to DAC (1048576 = 4294967296 / 4096)
+      else           DACC->DACC_CDR = (int16_t) (WaveFull[WaveBit >> 20] * WaveAmp >> 16); // if 1st wave half, write to DAC (1048576 = 4294967296 / 4096)
     }
   }
   else if (InterruptMode == 10) // constrained only during calculating of WaveShape 3, composite wave, if mirror effect is OFF as constraining earlier causes clipping and incorrect mixing of high amplitude waves. This makes the wave look good during calculating, although it slows the calculating process a little.
@@ -6806,8 +6778,8 @@ void TC0_Handler() // write analogue & synchronized square wave to DAC & pin 3 -
       else if (!ExactFreqMode) WaveBit = 1; // if not in exact freq mode reset to 1, allowing next update to be lower at 0 (necessary for very low duty cycle)
       if (MinOrMaxWaveDuty) // if duty set to 0 or 100
       {
-        if (!WaveHalf) DACC->DACC_CDR = constrain((int16_t) (WaveFull2[WaveBit / 1048576] * WaveAmp >> 10), 0, WAVERESOL-1); // if displaying 2nd wave half only (just passed end), write to DAC (1048576 = 4294967296 / 4096)
-        else           DACC->DACC_CDR = constrain((int16_t) (WaveFull[WaveBit / 1048576] * WaveAmp >> 10), 0, WAVERESOL-1); // if displaying 1st wave half only (just passed end), write to DAC
+        if (!WaveHalf) DACC->DACC_CDR = constrain((int16_t) (WaveFull2[WaveBit >> 20] * WaveAmp >> 16), 0, WAVERESOL-1); // if displaying 2nd wave half only (just passed end), write to DAC (1048576 = 4294967296 / 4096)
+        else           DACC->DACC_CDR = constrain((int16_t) (WaveFull[WaveBit >> 20] * WaveAmp >> 16), 0, WAVERESOL-1); // if displaying 1st wave half only (just passed end), write to DAC
         if (SquareWaveSync)
         {
           if (WaveHalf) // if duty set to 100
@@ -6829,7 +6801,7 @@ void TC0_Handler() // write analogue & synchronized square wave to DAC & pin 3 -
       {
         if (WaveHalf)
         {
-          DACC->DACC_CDR = constrain((int16_t) (WaveFull2[WaveBit / 1048576] * WaveAmp >> 10), 0, WAVERESOL-1); // if 2nd wave half (just passed end of 1st half), write to DAC (1048576 = 4294967296 / 4096)
+          DACC->DACC_CDR = constrain((int16_t) (WaveFull2[WaveBit >> 20] * WaveAmp >> 16), 0, WAVERESOL-1); // if 2nd wave half (just passed end of 1st half), write to DAC (1048576 = 4294967296 / 4096)
           if (SquareWaveSync)
           {
             TC2->TC_CHANNEL[1].TC_CMR = TC_CMR_WAVE | TC_CMR_ASWTRG_CLEAR; // set TIOA (sq. wave on pin 3) LOW when triggered (on next line)
@@ -6838,7 +6810,7 @@ void TC0_Handler() // write analogue & synchronized square wave to DAC & pin 3 -
         }
         else
         {
-          DACC->DACC_CDR = constrain((int16_t) (WaveFull[WaveBit / 1048576] * WaveAmp >> 10), 0, WAVERESOL-1); // if 1st wave half (just passed end of 2nd half), write to DAC (1048576 = 4294967296 / 4096)
+          DACC->DACC_CDR = constrain((int16_t) (WaveFull[WaveBit >> 20] * WaveAmp >> 16), 0, WAVERESOL-1); // if 1st wave half (just passed end of 2nd half), write to DAC (1048576 = 4294967296 / 4096)
           if (SquareWaveSync)
           {
             TC2->TC_CHANNEL[1].TC_CMR = TC_CMR_WAVE | TC_CMR_ASWTRG_SET; // set TIOA (sq. wave on pin 3) HIGH when triggered (on next line)
@@ -6850,8 +6822,8 @@ void TC0_Handler() // write analogue & synchronized square wave to DAC & pin 3 -
     }
     else // if not end of wave half
     {
-      if (!WaveHalf) DACC->DACC_CDR = constrain((int16_t) (WaveFull2[WaveBit / 1048576] * WaveAmp >> 10), 0, WAVERESOL-1); // if 2nd wave half, write to DAC (1048576 = 4294967296 / 4096)
-      else           DACC->DACC_CDR = constrain((int16_t) (WaveFull[WaveBit / 1048576] * WaveAmp >> 10), 0, WAVERESOL-1); // if 1st wave half, write to DAC (1048576 = 4294967296 / 4096)
+      if (!WaveHalf) DACC->DACC_CDR = constrain((int16_t) (WaveFull2[WaveBit >> 20] * WaveAmp >> 16), 0, WAVERESOL-1); // if 2nd wave half, write to DAC (1048576 = 4294967296 / 4096)
+      else           DACC->DACC_CDR = constrain((int16_t) (WaveFull[WaveBit >> 20] * WaveAmp >> 16), 0, WAVERESOL-1); // if 1st wave half, write to DAC (1048576 = 4294967296 / 4096)
     }
   }
   else  if (InterruptMode == 1) // Modulate with Analogue 2 input - constrained 
@@ -6863,8 +6835,8 @@ void TC0_Handler() // write analogue & synchronized square wave to DAC & pin 3 -
       else if (!ExactFreqMode) WaveBit = 1; // if not in exact freq mode reset to 1, allowing next update to be lower at 0 (necessary for very low duty cycle)
       if (MinOrMaxWaveDuty) // if duty set to 0 or 100
       {
-        if (!WaveHalf) DACC->DACC_CDR = constrain(((WaveFull2[WaveBit / 1048576] * Modulation) / WAVERESOL) + HALFRESOL, 0, WAVERESOL-1); // if displaying 2nd wave half only (just passed end), write to DAC (1048576 = 4294967296 / 4096)
-        else           DACC->DACC_CDR = constrain(((WaveFull[WaveBit / 1048576] * Modulation) / WAVERESOL) + HALFRESOL, 0, WAVERESOL-1); // if displaying 1st wave half only (just passed end), write to DAC
+        if (!WaveHalf) DACC->DACC_CDR = constrain(((WaveFull2[WaveBit >> 20] * Modulation) / WAVERESOL) + HALFRESOL, 0, WAVERESOL-1); // if displaying 2nd wave half only (just passed end), write to DAC (1048576 = 4294967296 / 4096)
+        else           DACC->DACC_CDR = constrain(((WaveFull[WaveBit >> 20] * Modulation) / WAVERESOL) + HALFRESOL, 0, WAVERESOL-1); // if displaying 1st wave half only (just passed end), write to DAC
         if (SquareWaveSync)
         {
           if (WaveHalf) // if duty set to 100
@@ -6886,7 +6858,7 @@ void TC0_Handler() // write analogue & synchronized square wave to DAC & pin 3 -
       {
         if (WaveHalf)
         {
-          DACC->DACC_CDR = constrain(((WaveFull2[WaveBit / 1048576] * Modulation) / WAVERESOL) + HALFRESOL, 0, WAVERESOL-1); // if 2nd wave half (just passed end of 1st half), write to DAC (1048576 = 4294967296 / 4096)
+          DACC->DACC_CDR = constrain(((WaveFull2[WaveBit >> 20] * Modulation) / WAVERESOL) + HALFRESOL, 0, WAVERESOL-1); // if 2nd wave half (just passed end of 1st half), write to DAC (1048576 = 4294967296 / 4096)
           if (SquareWaveSync)
           {
             TC2->TC_CHANNEL[1].TC_CMR = TC_CMR_WAVE | TC_CMR_ASWTRG_CLEAR; // set TIOA (sq. wave on pin 3) LOW when triggered (on next line)
@@ -6895,7 +6867,7 @@ void TC0_Handler() // write analogue & synchronized square wave to DAC & pin 3 -
         }
         else
         {
-          DACC->DACC_CDR = constrain(((WaveFull[WaveBit / 1048576] * Modulation) / WAVERESOL) + HALFRESOL, 0, WAVERESOL-1); // if 1st wave half (just passed end of 2nd half), write to DAC (1048576 = 4294967296 / 4096)
+          DACC->DACC_CDR = constrain(((WaveFull[WaveBit >> 20] * Modulation) / WAVERESOL) + HALFRESOL, 0, WAVERESOL-1); // if 1st wave half (just passed end of 2nd half), write to DAC (1048576 = 4294967296 / 4096)
           if (SquareWaveSync)
           {
             TC2->TC_CHANNEL[1].TC_CMR = TC_CMR_WAVE | TC_CMR_ASWTRG_SET; // set TIOA (sq. wave on pin 3) HIGH when triggered (on next line)
@@ -6907,8 +6879,8 @@ void TC0_Handler() // write analogue & synchronized square wave to DAC & pin 3 -
     }
     else // if not end of wave half
     {
-      if (!WaveHalf) DACC->DACC_CDR = constrain(((WaveFull2[WaveBit / 1048576] * Modulation) / WAVERESOL) + HALFRESOL, 0, WAVERESOL-1); // if 2nd wave half, write to DAC (1048576 = 4294967296 / 4096)
-      else           DACC->DACC_CDR = constrain(((WaveFull[WaveBit / 1048576] * Modulation) / WAVERESOL) + HALFRESOL, 0, WAVERESOL-1); // if 1st wave half, write to DAC (1048576 = 4294967296 / 4096)
+      if (!WaveHalf) DACC->DACC_CDR = constrain(((WaveFull2[WaveBit >> 20] * Modulation) / WAVERESOL) + HALFRESOL, 0, WAVERESOL-1); // if 2nd wave half, write to DAC (1048576 = 4294967296 / 4096)
+      else           DACC->DACC_CDR = constrain(((WaveFull[WaveBit >> 20] * Modulation) / WAVERESOL) + HALFRESOL, 0, WAVERESOL-1); // if 1st wave half, write to DAC (1048576 = 4294967296 / 4096)
     }
   }
   else if (InterruptMode == 2) // Modulate Wave with envelope as it feeds to DAC, producing a musical note - constrained 
@@ -6922,20 +6894,20 @@ void TC0_Handler() // write analogue & synchronized square wave to DAC & pin 3 -
           WaveBit = (WaveBit / 1000) * DutyMultiplier[WaveHalf]; // if not 50% duty-cycle TRY to maintain freq
         if (MinOrMaxWaveDuty) // if duty set to 0 or 100
         {
-          if (!WaveHalf) tempSample = constrain(WaveCom2[WaveBit / 1048576], -2047, 2047); // if displaying 2nd wave half only (just passed end), write to DAC (1048576 = 4294967296 / 4096)
-          else           tempSample = constrain(WaveCom[WaveBit / 1048576], -2047, 2047); // if displaying 1st wave half only (just passed end), write to DAC
+          if (!WaveHalf) tempSample = constrain(WaveCom2[WaveBit >> 20], -2047, 2047); // if displaying 2nd wave half only (just passed end), write to DAC (1048576 = 4294967296 / 4096)
+          else           tempSample = constrain(WaveCom[WaveBit >> 20], -2047, 2047); // if displaying 1st wave half only (just passed end), write to DAC
         }
         else // if duty not set to 0 or 100
         {
-          if (WaveHalf) tempSample = constrain(WaveCom2[WaveBit / 1048576], -2047, 2047); // if 2nd wave half (just passed end of 1st half), write to DAC (1048576 = 4294967296 / 4096)
-          else          tempSample = constrain(WaveCom[WaveBit / 1048576], -2047, 2047); // if 1st wave half (just passed end of 2nd half), write to DAC (1048576 = 4294967296 / 4096)
+          if (WaveHalf) tempSample = constrain(WaveCom2[WaveBit >> 20], -2047, 2047); // if 2nd wave half (just passed end of 1st half), write to DAC (1048576 = 4294967296 / 4096)
+          else          tempSample = constrain(WaveCom[WaveBit >> 20], -2047, 2047); // if 1st wave half (just passed end of 2nd half), write to DAC (1048576 = 4294967296 / 4096)
           WaveHalf = !WaveHalf; // change to other wave half
         }
       }
       else // if not end of wave half
       {
-        if (!WaveHalf) tempSample = constrain(WaveCom2[WaveBit / 1048576], -2047, 2047); // if 2nd wave half, write to DAC (1048576 = 4294967296 / 4096)
-        else           tempSample = constrain(WaveCom[WaveBit / 1048576], -2047, 2047); // if 1st wave half, write to DAC (1048576 = 4294967296 / 4096)
+        if (!WaveHalf) tempSample = constrain(WaveCom2[WaveBit >> 20], -2047, 2047); // if 2nd wave half, write to DAC (1048576 = 4294967296 / 4096)
+        else           tempSample = constrain(WaveCom[WaveBit >> 20], -2047, 2047); // if 1st wave half, write to DAC (1048576 = 4294967296 / 4096)
       }
       if (SlurFilter)
       {
