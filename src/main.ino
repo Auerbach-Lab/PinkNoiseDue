@@ -162,11 +162,15 @@ void setup() {
   UserInput = 4000; //set serial input to mimic '4000h' ie change to 4000 Hz frequency
   SetFreqPeriod();
 
-  if (!ExactFreqMode) ToggleExactFreqMode(); //exact freq mode is needed for software volume control, otherwise we copy entire buffer at a time in
-
-  //SinAmp=0.10; //change volume and recalculate wave
-  //WaveAmp=65536; //1,000,000 = 100% volume. TODO: May need to turn NoiseAmp into a uint32_t as well
+  //SinAmp=0.10; //change volume and recalculate wave, pre-calculation mode
   CreateNewWave();
+
+  //WaveAmp=65536; //65536 = 100% volume, 'live' mode, only applies in exact freq mode
+  if (!ExactFreqMode) ToggleExactFreqMode(); //exact freq mode is needed for 'live' volume control, otherwise we copy entire buffer at a time in
+  //unfortunately in exact mode we get harmonics on 32khz that are worse than not having ability to do cosine gate in software, so we will have to do gate in hardware or skip it
+  
+  //TODO: May want to turn NoiseAmp into a uint32_t as well and work on same scale? And change divisions to shifts?
+  //Need to test getting 90-30 dB of noise
 }
 
 void loop() { 
@@ -192,5 +196,5 @@ void loop() {
   }
 
   Loop_DAWG(); //Due Arbitrary Waveform Generator - not my acronym haha
-  delay(1);
+  //delay(1);
 }
