@@ -170,7 +170,7 @@ void setup() {
     Wire1.begin(); 
     delay(100);
   }
-  potentiometerTap = 0;
+  potentiometerTap = 0; // max volume (127 is max resistance, min volume)
   ds.setWiper(potentiometerTap);
 
   Setup_DAWG(); //Due Arbitrary Waveform Generator - not my acronym haha
