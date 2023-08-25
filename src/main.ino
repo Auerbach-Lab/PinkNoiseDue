@@ -162,10 +162,10 @@ void setup() {
   UserInput = 4000; //set serial input to mimic '4000h' ie change to 4000 Hz frequency
   SetFreqPeriod();
 
-  if (!ExactFreqMode) ToggleExactFreqMode(); //exact freq mode is needed for software volume control, otherwise we copy entire buffer at a time in
+  //if (!ExactFreqMode) ToggleExactFreqMode(); //exact freq mode is needed for software volume control, otherwise we copy entire buffer at a time in
 
   //SinAmp=0.10; //change volume and recalculate wave
-  WaveAmp=1000000; //1,000,000 = 100% volume. TODO: May need to turn NoiseAmp into a uint32_t as well
+  WaveAmp=1048576; //1,048,576 = 100% volume. TODO: May need to turn NoiseAmp into a uint32_t as well
   CreateNewWave();
 }
 
