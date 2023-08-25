@@ -5,6 +5,8 @@
 #include <flash_efc.h>
 #include "costable.h"
 #include "DueArbitraryWaveformGeneratorV2.h"
+#include <Wire.h>
+#include <Adafruit_DS1841.h>
 
 // EDIT THESE VALUES to adjust timings on sequence
 #define RECORDING_DURATION  600000   // ms duration of entire recording sequence, must be at least BOOKEND_DURATION * 2 + SOUND_DURATION for a single sound
@@ -51,6 +53,10 @@ unsigned long soundStartedAt = 0; //active playing sound, for convenience
 unsigned long soundStopsAt = 0; //active playing sound, for convenience
 unsigned long currentMillis = 0;
 unsigned long sequenceToStop = 0;
+
+Adafruit_DS1841 ds; //logarithmic potentiometer DS1841
+uint8_t potentiometerTap; //controls output of potentiometer, 0-127
+extern TwoWire Wire1; // use SCL1 & SDA1 for I2c to potentiometer
 
 static void playSound(int i) {
   Serial.println("Sound playing");
@@ -152,6 +158,19 @@ void setup() {
   pinMode(RELAY_PIN, OUTPUT);
   digitalWrite(RELAY_PIN, HIGH); //DEBUG (WAS LOW))
 
+  analogReadResolution(12);
+  analogWriteResolution(12);
+  Serial.begin(115200);
+  
+  // Try to initialize!
+  Wire1.begin();        // join i2c bus
+  while (!ds.begin(0x28, &Wire1)) {
+    Serial.println("Failed to find DS1841 chip");
+    delay(10);
+  }
+  potentiometerTap = 0;
+  ds.setWiper(potentiometerTap);
+
   Setup_DAWG(); //Due Arbitrary Waveform Generator - not my acronym haha
   NoiseAmp=VOLUME; //DEBUG (WAS 0) -- this only controls noise (not waveform) amplitude
 
@@ -176,6 +195,9 @@ void setup() {
 void loop() { 
   pollButtons();
   currentMillis = millis();
+  potentiometerTap=potentiometerTap+1 & 0b01111111;
+  ds.setWiper(potentiometerTap);
+  Serial.print("Wiper: ");Serial.print(ds.getWiper());Serial.println(" LSB");
 
   for (unsigned int i=0; i < SOUND_COUNT; i++) {
     if (!soundStartedAt && soundToStart[i] && (currentMillis > soundToStart[i])) {playSound(i);}
