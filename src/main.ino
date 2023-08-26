@@ -60,9 +60,10 @@ extern TwoWire Wire1; // use SCL1 & SDA1 for I2c to potentiometer
 
 static void playSound(int i) {
   Serial.println("Sound playing");
-  //NoiseAmp = 200; //90 dB @ 1m, but instead schedule for cosine fade
   digitalWrite(RELAY_PIN, HIGH);
   digitalWrite(TTL_OUTPUT_PIN, HIGH);
+  //SinAmp = 100; CreateWaveFull(0);
+  NoiseAmp = VOLUME;
   soundStartedAt = currentMillis; //schedule, for cosine fade
   soundStopsAt = soundToStop[i];
   soundToStart[i] = 0; //clear assignment
@@ -71,8 +72,10 @@ static void playSound(int i) {
 static void silenceSound(int i) {
   Serial.println("Sound silenced"); 
   //DEBUG (WAS UNCOMMENTED) NoiseAmp = 0;
-  //DEBUG (WAS UNCOMMENTED) digitalWrite(RELAY_PIN, LOW);
+  digitalWrite(RELAY_PIN, LOW);
   digitalWrite(TTL_OUTPUT_PIN, LOW);
+  //SinAmp = 0; CreateWaveFull(0);
+  NoiseAmp = 0;
   soundStartedAt = 0; //clear indication that sound is playing
   soundStopsAt = 0;
   soundToStop[i] = 0; //clear assignment     
@@ -156,7 +159,7 @@ void setup() {
   pinMode(SEQUENCE_LED_PIN, OUTPUT);
   pinMode(TTL_OUTPUT_PIN, OUTPUT);
   pinMode(RELAY_PIN, OUTPUT);
-  digitalWrite(RELAY_PIN, HIGH); //DEBUG (WAS LOW))
+  digitalWrite(RELAY_PIN, LOW);
 
   analogReadResolution(12);
   analogWriteResolution(12);
@@ -173,23 +176,22 @@ void setup() {
   potentiometerTap = 0; // max volume (127 is max resistance, min volume)
   ds.setWiper(potentiometerTap);
 
+  
+
   Setup_DAWG(); //Due Arbitrary Waveform Generator - not my acronym haha
   NoiseAmp=VOLUME; //DEBUG (WAS 0) -- this only controls noise (not waveform) amplitude
 
   // TONES
   UserChars[1] = '0'; //set serial input to mimic 'w0' ie change to waveform 0 ie sinusoidal
   ChangeWaveShape(true);
-  
+
   UserInput = 4000; //set serial input to mimic '4000h' ie change to 4000 Hz frequency
   SetFreqPeriod();
-
-  //SinAmp=0.10; //change volume and recalculate wave, pre-calculation mode
-  CreateNewWave();
-
-  //WaveAmp=65536; //65536 = 100% volume, 'live' mode, only applies in exact freq mode
-  if (!ExactFreqMode) ToggleExactFreqMode(); //exact freq mode is needed for 'live' volume control, otherwise we copy entire buffer at a time in
-  //unfortunately in exact mode we get harmonics on 32khz that are worse than not having ability to do cosine gate in software, so we will have to do gate in hardware or skip it
   
+  //SinAmp=0.10; //change volume and recalculate wave, pre-calculation mode
+  CreateWaveFull(0);
+
+  //TODO: May need to turn SinAmp into uint32_t and replace waveAmp for use in fastmode
   //TODO: May want to turn NoiseAmp into a uint32_t as well and work on same scale? And change divisions to shifts?
   //Need to test getting 90-30 dB of noise
 }
@@ -197,9 +199,7 @@ void setup() {
 void loop() { 
   pollButtons();
   currentMillis = millis();
-  potentiometerTap=currentMillis / 50 % 256;
-  ds.setWiper(abs(potentiometerTap));
-  Serial.print("Wiper: ");Serial.print(ds.getWiper());Serial.println(" LSB");
+  //Serial.print("Wiper: "); Serial.print(ds.getWiper()); Serial.println(" LSB");
 
   for (unsigned int i=0; i < SOUND_COUNT; i++) {
     if (!soundStartedAt && soundToStart[i] && (currentMillis > soundToStart[i])) {playSound(i);}
@@ -210,15 +210,15 @@ void loop() {
   float elapsed = currentMillis - soundStartedAt; //float so we get reasonable math below rather than integer math
   float remaining = soundStopsAt - currentMillis;
   if (soundStartedAt && elapsed < COSINE_PERIOD) { //in cosine gate at start, fade up
-    uint16_t j = constrain((COS_TABLE_SIZE-1) * (COSINE_PERIOD - elapsed) / COSINE_PERIOD, 0, COS_TABLE_SIZE-1);
-    NoiseAmp = VOLUME * pgm_read_word_near(cosTable + j) / COS_TABLE_AMPLITUDE;
-    //Serial.println(NoiseAmp);
+    uint16_t j = constrain((COS_TABLE_SIZE-1) * elapsed / COSINE_PERIOD, 0, COS_TABLE_SIZE-1);
+    potentiometerTap = 127 * pgm_read_word_near(cosTable + j) / COS_TABLE_AMPLITUDE;
+    ds.setWiper(potentiometerTap);
   } if (soundStartedAt && soundStopsAt - currentMillis < COSINE_PERIOD) { //in cosine gate at end, fade down
-    uint16_t j = constrain((COS_TABLE_SIZE-1) * (COSINE_PERIOD - remaining) / COSINE_PERIOD, 0, COS_TABLE_SIZE-1);
-    NoiseAmp = VOLUME * pgm_read_word_near(cosTable + j) / COS_TABLE_AMPLITUDE;
-    //Serial.println(NoiseAmp);
+    uint16_t j = constrain((COS_TABLE_SIZE-1) * remaining / COSINE_PERIOD, 0, COS_TABLE_SIZE-1);
+    potentiometerTap = 127 * pgm_read_word_near(cosTable + j) / COS_TABLE_AMPLITUDE;
+    ds.setWiper(potentiometerTap);
   }
 
   Loop_DAWG(); //Due Arbitrary Waveform Generator - not my acronym haha
-  //delay(1);
+  delay(1);
 }
