@@ -60,9 +60,10 @@ extern TwoWire Wire1; // use SCL1 & SDA1 for I2c to potentiometer
 
 static void playSound(int i) {
   Serial.println("Sound playing");
-  digitalWrite(RELAY_PIN, HIGH);
+  //digitalWrite(RELAY_PIN, HIGH);
   digitalWrite(TTL_OUTPUT_PIN, HIGH);
   //SinAmp = 100; CreateWaveFull(0);
+  UserChars[1] = '0'; ChangeWaveShape(true); //switch to sinusoidal (0) or noise(4) for instant on
   NoiseAmp = VOLUME;
   soundStartedAt = currentMillis; //schedule, for cosine fade
   soundStopsAt = soundToStop[i];
@@ -72,9 +73,10 @@ static void playSound(int i) {
 static void silenceSound(int i) {
   Serial.println("Sound silenced"); 
   //DEBUG (WAS UNCOMMENTED) NoiseAmp = 0;
-  digitalWrite(RELAY_PIN, LOW);
+  //digitalWrite(RELAY_PIN, LOW);
   digitalWrite(TTL_OUTPUT_PIN, LOW);
   //SinAmp = 0; CreateWaveFull(0);
+  UserChars[1] = '2'; ChangeWaveShape(true); //switch to arbitrary wave (undefined) for instant silence
   NoiseAmp = 0;
   soundStartedAt = 0; //clear indication that sound is playing
   soundStopsAt = 0;
@@ -159,7 +161,8 @@ void setup() {
   pinMode(SEQUENCE_LED_PIN, OUTPUT);
   pinMode(TTL_OUTPUT_PIN, OUTPUT);
   pinMode(RELAY_PIN, OUTPUT);
-  digitalWrite(RELAY_PIN, LOW);
+  //digitalWrite(RELAY_PIN, LOW);
+  digitalWrite(RELAY_PIN, HIGH);
 
   analogReadResolution(12);
   analogWriteResolution(12);
@@ -173,7 +176,7 @@ void setup() {
     Wire1.begin(); 
     delay(100);
   }
-  potentiometerTap = 0; // max volume (127 is max resistance, min volume)
+  potentiometerTap = 127; // quiet (127 is max resistance, min volume)
   ds.setWiper(potentiometerTap);
 
   
