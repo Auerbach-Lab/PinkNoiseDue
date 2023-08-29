@@ -63,7 +63,6 @@ static void playSound(int i) {
   //digitalWrite(RELAY_PIN, HIGH);
   digitalWrite(TTL_OUTPUT_PIN, HIGH);
   //SinAmp = 100; CreateWaveFull(0);
-  UserChars[1] = '0'; ChangeWaveShape(true); //switch to sinusoidal (0) or noise(4) for instant on
   NoiseAmp = VOLUME;
   soundStartedAt = currentMillis; //schedule, for cosine fade
   soundStopsAt = soundToStop[i];
@@ -76,7 +75,7 @@ static void silenceSound(int i) {
   //digitalWrite(RELAY_PIN, LOW);
   digitalWrite(TTL_OUTPUT_PIN, LOW);
   //SinAmp = 0; CreateWaveFull(0);
-  UserChars[1] = '2'; ChangeWaveShape(true); //switch to arbitrary wave (undefined) for instant silence
+  UserChars[1] = '2'; ChangeWaveShape(true); //switch to arbit
   NoiseAmp = 0;
   soundStartedAt = 0; //clear indication that sound is playing
   soundStopsAt = 0;
@@ -188,11 +187,12 @@ void setup() {
   UserChars[1] = '0'; //set serial input to mimic 'w0' ie change to waveform 0 ie sinusoidal
   ChangeWaveShape(true);
 
-  UserInput = 4000; //set serial input to mimic '4000h' ie change to 4000 Hz frequency
+  UserInput = 16000; //set serial input to mimic '4000h' ie change to 4000 Hz frequency
   SetFreqPeriod();
   
   //SinAmp=0.10; //change volume and recalculate wave, pre-calculation mode
   CreateWaveFull(0);
+  if (ExactFreqMode) ToggleExactFreqMode(); //we DON'T want to be in exact mode, which has nasty harmonics at 32khz
 
   //TODO: May need to turn SinAmp into uint32_t and replace waveAmp for use in fastmode
   //TODO: May want to turn NoiseAmp into a uint32_t as well and work on same scale? And change divisions to shifts?
