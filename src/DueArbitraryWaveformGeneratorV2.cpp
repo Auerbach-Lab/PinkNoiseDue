@@ -1,8 +1,5 @@
 #include <Arduino.h>
 #include <debounce.h>
-#include <DueFlashStorage.h>
-#include <efc.h>
-#include <flash_efc.h>
 #include "DueArbitraryWaveformGeneratorV2.h"
 
 
@@ -332,21 +329,13 @@ uint16_t ModulationCalc;   // equals Modulation * 16 - Calculating with higher n
 int16_t  LastSample = 0; // previous sample - used for filtering when Legato enabled
 uint16_t PeakLevel = 65535; // 65536 = 4096 * 16 - Calculating with higher numbers allows better (slower) log fading out when level becomes low
 //  7 instruments v possible  WAVE defaults    PIANO defaults    GUITAR defaults   MARIMBA defaults  TRUMPET defaults   SAX defaults     Violin defaults 
-byte     Envelope[7][5] = { {45, 4, 5, 0, 20},{45, 4, 5, 0, 20},{45, 4, 5, 0, 20},{45, 4, 5, 0, 20},{45, 4, 5, 0, 20},{45, 4, 5, 0, 20},{45, 4, 5, 0, 20} }; // {attack rate, decay delay time, decay rate, sustain level, release rate}
-byte     EnvSet; //  ^ 5 envelope settings - ie: attack rate, decay delay time, decay rate, sustain level, release rate
-uint16_t AttackRate[7]; // calculated from Envelope[x][0] later
-uint16_t DecayDelay = 0; // calculated from Envelope[x][1] later
-byte     DecayRate = Envelope[0][2];
-bool     Play; // 1 = tune playing
 uint8_t  ClearPreset = 255;
 uint8_t  ClearTune = 255;
 uint8_t  LinkedPreset = 0;
 uint8_t  LoadedPreset = 0;
-uint8_t  LoadedTune = 0;
 bool     StartupTune = 0; // 1 = enabled
 // Create the structure of the configuration for saving defaults to flash memory (Due has no EEPROM)
-#include <DueFlashStorage.h>
-DueFlashStorage dueFlashStorage;
+
 struct Configuration // The structure of the configuration for saving settings to flash memory
 {
   double   TargetFreq;
@@ -426,8 +415,8 @@ void Setup_DAWG()
   pinMode(18, INPUT_PULLUP); // 8 keypad switch
   pinMode(19, INPUT_PULLUP); // 9 keypad switch
   //pinMode(43, INPUT_PULLUP); // Save current settings as Start-up Default switch
-  pinMode(52, INPUT_PULLUP); // Save Preset switch - press after entering number with keypad - Press twice to replace existing Preset data (LED will light up if it exists) or press clear to cancel
-  pinMode(53, INPUT_PULLUP); // Load Preset switch - press after entering number with keypad  
+  // pinMode(52, INPUT_PULLUP); // Save Preset switch - press after entering number with keypad - Press twice to replace existing Preset data (LED will light up if it exists) or press clear to cancel
+  // pinMode(53, INPUT_PULLUP); // Load Preset switch - press after entering number with keypad  
   pinMode(62, INPUT_PULLUP); // enter frequency switch - press after entering number with keypad
   pinMode(63, INPUT_PULLUP); // enter period switch - press after entering number with keypad
   pinMode(64, INPUT_PULLUP); // enter duty cycle switch - press after entering number with keypad
@@ -467,14 +456,7 @@ void Setup_DAWG()
   trng_enable(TRNG);
   dac_setup();  // set up fast mode for dac
   TimerCounts = freqToTc(TargetWaveFreq); // for TC_setup()
-  if (dueFlashStorage.read(226749) >= 1 && dueFlashStorage.read(226749) <= 50)
-  {
-    StartupTune = 1;
-    dac_setup2(); // set up slow mode for dac
-    DACC->DACC_CDR = HALFRESOL;
-    delay(200); // as "StartupTune" disables interrupts to produce silence, allow time for GUI to send handshake signal
-  }
-  else dac_setup2(); // set up slow mode for dac
+  dac_setup2(); // set up slow mode for dac
   TC_setup();   // set up fast mode timing
   TC_setup2();  // set up slow mode timing
   TC_setup4();  // set up sync'ed sq wave settings
@@ -520,391 +502,7 @@ void Setup2()
 
 void Settings(byte defaultMode, int preset, boolean sendToGUI) // defaultMode: 0 = just started up. 1 = loading defaults or preset. 2 = loading factory defaults. preset = number to load if > 0
 {
-  // Flash is erased every time new code is uploaded. Write the "factory" default configuration to flash (as start-up defaults) if just uploded
-  if (dueFlashStorage.read(0) > 0 || defaultMode == 2) // if just uploaded (flash bytes will be 255 at first run) read Factory Defaults OR read Factory Defaults to do a restoration if requested
-  {
-    Cfg.TargetFreq       = 1000;
-    Cfg.TargetWaveFreq   = 1000;
-    Cfg.TargetPeriod     = 0; // 0 = not set
-    Cfg.TargetWavePeriod = 0; // 0 = not set
-    Cfg.TargetDuty       = 50;
-    Cfg.TargetWaveDuty   = 50;
-    Cfg.TargetPulseWidth     = 0; // 0 = not set
-    Cfg.TargetWavePulseWidth = 0; // 0 = not set
-    Cfg.SweepMinFreq   = 20;
-    Cfg.SweepMaxFreq   = 20000;
-    Cfg.SweepRiseTime  = 20;
-    Cfg.SweepFallTime  = 20;
-    Cfg.PeriodD        = 0;
-    Cfg.PeriodH        = 0;
-    Cfg.PeriodM        = 0;
-    Cfg.PeriodS        = 10;  // seconds - Target time period for timer
-    Cfg.TimerMode      = 0;
-    Cfg.SweepMode      = 0;
-    Cfg.WaveShape      = 4;
-    Cfg.ExactFreqMode  = 0;
-    Cfg.SquareWaveSync = 0;
-    Cfg.TimerInvert    = 0;
-    Cfg.PotsEnabled    = 0;
-    Cfg.PotPulseWidth0 = 0; // [0]
-    Cfg.PotPulseWidth1 = 0; // [1]
-    Cfg.PotPeriodMode0 = 0; // [0]
-    Cfg.PotPeriodMode1 = 0; // [1]
-    Cfg.Range0         = 1; // [0]
-    Cfg.Range1         = 100; // [1]
-    Cfg.Range2         = 1; // [2]
-    Cfg.Range3         = 1; // [3]
-    Cfg.Control        = 2; // = 2;
-    Cfg.SinAmp         = 1.0;  // Amplitude
-    Cfg.SinVshift      = 0.5;  // Vertical shift
-    Cfg.SinPhase       = 0.5;  // Phase shift
-    Cfg.SinFreq2       = 8;    // Sinewave 2 (2nd sinewave) Frequency Multiple. (X times Sinewave 1)
-    Cfg.SinAddMix      = 0;    // Sinewave 2 percentage Mix in Add Waves mode
-    Cfg.SinMulMix      = 0;    // Sinewave 2 percentage Mix in Multiply Waves mode
-    Cfg.TriAmp         = 1.0;  // Amplitude / slope
-    Cfg.TriVshift      = 0.5;  // Vertical shift
-    Cfg.TriPhase       = 0.5;  // Phase shift
-    Cfg.TriNumS        = 0;    // Number of Steps per half wave (0 = off)
-    Cfg.ArbAmp         = 1.0;  // Amplitude
-    Cfg.ArbVshift      = 0.5;  // Vertical shift
-    Cfg.ArbHzoom       = 1.0;  // horizontal Zoom
-    Cfg.ArbHshift      = 0.5;  // Horizontal shift
-    Cfg.ArbMirror      = 0;    // half cycle Mirror effect (0 = off)
-    Cfg.ComSinAmp      = 0.5;  // Sine Wave mix
-    Cfg.ComTriAmp      = 0.5;  // Triangle Wave mix
-    Cfg.ComArbAmp      = 0.5;  // Arbitrary Wave mix
-    Cfg.NoiseAmp       = 0;  // Amplitude
-    Cfg.NoiseColour    = 500;  // Noise colour: 500 = Pink noise
-    byte bArray[sizeof(Configuration)]; // create byte array to store the structure
-    memcpy(bArray, &Cfg, sizeof(Configuration)); // copy the struct to the byte array
-    if (dueFlashStorage.read(0) > 0) // if just uploaded
-    {
-      SaveSliderDefaults();
-      dueFlashStorage.write(44, bArray, sizeof(Configuration)); // if justUploaded write byte array (as start-up Defaults) to flash at address 44
-      for (byte i = 1; i <= 50; i++) // set line feeds so GUI can count Preset Name Numbers. i = Preset Number
-      {
-        dueFlashStorage.write((i * 240) + 221, '\n');
-      }      
-      for (byte i = 0; i < 50; i++) // set line feeds so GUI can count Tune Name Numbers. i = Tune - 1
-      {
-        dueFlashStorage.write((i * 29) + 226900, '\n');
-      }      
-    }
-  }
-  if (dueFlashStorage.read(0) == 0) // if NOT just uploaded
-  {
-    int interruptMode = dueFlashStorage.read((preset * 240) + 220);
-    if (interruptMode == 255) interruptMode = 0;
-  //  Serial.print("   interruptMode "); Serial.println(interruptMode);
-    byte timerMode;
-    byte sweepMode;
-    bool squareWaveSync = 0;
-    byte waveShape = 0;
-    Configuration cfg; // create a temporary structure
-    if (defaultMode == 2) // Factory Default restoration: copy factory defaults from Cfg Configuration above to cfg configuration below
-    {
-      memcpy(&cfg, &Cfg,  sizeof(Configuration)); // copy Factory Defaults to temporary structure
-      if (!UsingGUI) Serial.println("   Factory Defaults loading...\n");
-    }
-    else // checked in Serial read section:  if (preset == 0 || dueFlashStorage.read((preset * 240) + 3) <= 1) // Load Defaults from flash at start-up, or if requested - OR Load Preset if not empty
-    {
-      byte* bArrayRead = dueFlashStorage.readAddress((preset * 240) + 44); // byte array which is read from flash at address 44 (must be a multiple of 4) 160 bytes used
-      memcpy(&cfg, bArrayRead, sizeof(Configuration)); // copy byte array to temporary structure
-      if (defaultMode == 1)
-      {
-        if (preset == 0) Serial.println("   Loading Defaults...\n");
-        else           { Serial.print("   Loading Preset "); Serial.print(preset); Serial.println("...\n"); }
-      }
-    }
-    
-    // copy from flash cfg. to variables: // checked in Serial read section:  else if (preset > 0 && dueFlashStorage.read((preset * 240) + 3) > 0) return;
-    TargetFreq       = cfg.TargetFreq; //     = 1000;
-    TargetWaveFreq   = cfg.TargetWaveFreq; // = 1000;
-    TargetPeriod     = cfg.TargetPeriod; //   = 0; // 0 = not set
-    TargetWavePeriod = cfg.TargetWavePeriod; // = 0; // 0 = not set
-    TargetDuty       = cfg.TargetDuty; //     = 50;
-    TargetWaveDuty   = cfg.TargetWaveDuty; // = 50;
-    TargetPulseWidth     = cfg.TargetPulseWidth; //     = 0; // 0 = not set
-    TargetWavePulseWidth = cfg.TargetWavePulseWidth; // = 0; // 0 = not set
-    SweepMinFreq     = cfg.SweepMinFreq; //   = 20;
-    SweepMaxFreq     = cfg.SweepMaxFreq; //   = 20000;
-    SweepRiseTime    = cfg.SweepRiseTime; //  = 20;
-    SweepFallTime    = cfg.SweepFallTime; //  = 20;
-    PeriodD          = cfg.PeriodD; //        = 0;
-    PeriodH          = cfg.PeriodH; //        = 0;
-    PeriodM          = cfg.PeriodM; //        = 0;
-    PeriodS          = cfg.PeriodS; //        = 10;  // seconds - Target time period for timer
-    timerMode        = cfg.TimerMode; //      = 0;
-    sweepMode        = cfg.SweepMode; //      = 0;
-    waveShape        = cfg.WaveShape; //      = 0;
-    ExactFreqMode    = cfg.ExactFreqMode; //  = 0;
-    squareWaveSync   = cfg.SquareWaveSync; // = 0; // Sq Wave Sync always starts switched off, then is enabled later if required.
-    TimerInvert      = cfg.TimerInvert; //    = 0;
-    if (InterruptMode == 0) PotsEnabled = cfg.PotsEnabled; // this setting should not change if playing a tune or if in modulation mode
-    PotPulseWidth[0] = cfg.PotPulseWidth0; // = 0; // [0]
-    PotPulseWidth[1] = cfg.PotPulseWidth1; // = 0; // [1]
-    PotPeriodMode[0] = cfg.PotPeriodMode0; // = 0; // [0]
-    PotPeriodMode[1] = cfg.PotPeriodMode1; // = 0; // [1]
-    Range[0]         = cfg.Range0; //         = 1; // [0]
-    Range[1]         = cfg.Range1; //         = 100; // [1]
-    Range[2]         = cfg.Range2; //         = 1; // [2]
-    Range[3]         = cfg.Range3; //         = 1; // [3]
-    Control          = cfg.Control; //        = 2; // = 2;
-    SinAmp           = cfg.SinAmp; //         = 1.0;  // Amplitude
-    SinVshift        = cfg.SinVshift; //      = 0.5;  // Vertical shift
-    SinPhase         = cfg.SinPhase; //       = 0.5;  // Phase shift
-    SinFreq2         = cfg.SinFreq2; //       = 8;    // Sinewave 2 (2nd sinewave) Frequency Multiple. (X times Sinewave 1)
-    SinAddMix        = cfg.SinAddMix; //      = 0;    // Sinewave 2 percentage Mix in Add Waves mode
-    SinMulMix        = cfg.SinMulMix; //      = 0;    // Sinewave 2 percentage Mix in Multiply Waves mode
-    TriAmp           = cfg.TriAmp; //         = 1.0;  // Amplitude / slope
-    TriVshift        = cfg.TriVshift; //      = 0.5;  // Vertical shift
-    TriPhase         = cfg.TriPhase; //       = 0.5;  // Phase shift
-    TriNumS          = cfg.TriNumS; //        = 0;    // Number of Steps per half wave (0 = off)
-    ArbAmp           = cfg.ArbAmp; //         = 1.0;  // Amplitude
-    ArbVshift        = cfg.ArbVshift; //      = 0.5;  // Vertical shift
-    ArbHzoom         = cfg.ArbHzoom; //       = 1.0;  // horizontal Zoom
-    ArbHshift        = cfg.ArbHshift; //      = 0.5;  // Horizontal shift
-    ArbMirror        = cfg.ArbMirror; //      = 0;    // half cycle Mirror effect (0 = off)
-    ComSinAmp        = cfg.ComSinAmp; //      = 0.5;  // Sine Wave mix
-    ComTriAmp        = cfg.ComTriAmp; //      = 0.5;  // Triangle Wave mix
-    ComArbAmp        = cfg.ComArbAmp; //      = 0.5;  // Arbitrary Wave mix
-    NoiseAmp         = cfg.NoiseAmp; //       = 100;  // Amplitude
-    NoiseColour      = cfg.NoiseColour; //    = 500;  // Noise colour: 500 = Pink noise
-  // THE FOLLOWING CODE RUNS WHEN CHANGING FROM ONE SETTINGS CONFIGURATION TO ANOTHER. SUCH AS LOADING DEFAULTS OR A PRESET:
-  // The code ensures the correct order of settings changes, so as to prevent lock-ups or omitted changes.
-    if (StartupTune)
-    {
-      if (dueFlashStorage.read(226748) == 100) // if stay in music mode after playing startup tune
-      {
-        waveShape = 3; // necessary if minisoundfont
-        ExactFreqMode = 1; // necessary if minisoundfont
-      }
-    }
-    if (waveShape == 4 && WaveShape != 4) // if proposed waveshape is noise and present waveshape is not noise 
-    {
-      if (defaultMode == 0) CreateWaveFull(10); // perform before entering noise, instead of in Setup2()
-      else // if (defaultMode > 0) // if not start-up 
-      {
-        SetWaveFreq(0);       // must be set before leaving noise by wave-change command, so set when entering
-        CalculateWaveDuty(0); // must be set before leaving noise by wave-change command, so set when entering
-        OldSquareWaveSync = squareWaveSync;
-      }
-    }
-    if (((waveShape == 4 && squareWaveSync == 1 && TimerMode == 1) || (WaveShape == 4 && OldSquareWaveSync == 1 && timerMode == 1) 
-      || (waveShape == 4 && squareWaveSync == 0 && TimerMode == 2) || (WaveShape == 4 && OldSquareWaveSync == 0 && timerMode == 2)) && defaultMode > 0) // if not at start-up & sync needs to change, exit noise & timer first
-    {
-      if (squareWaveSync == 1) OldSquareWaveSync = 1; // OldSquareWaveSync indicates state sync was before entering noise, so should be when leaving noise (WaveShape 4) later
-      UserChars[1] = waveShape + 48; // 48 in ASCII = '0' // if leaving noise selection
-      ChangeWaveShape(1);
-      ExitTimerMode();
-      ToggleSquareWaveSync(0);
-    }
-    if      (TimerMode > 0 && TimerMode != timerMode) ExitTimerMode(); // if exiting or changing Timer mode - makes TimerMode = 0 - could go back into Timer mode below if Sync (when originally entering timer) changed, ie: TimerMode 1 or 2
-    else if (SweepMode > 0 && sweepMode == 0) ExitSweepMode(); // if leaving sweep mode - makes SweepMode = 0
-    if (waveShape == 4 && WaveShape == 4) OldSquareWaveSync = squareWaveSync; // OldSquareWaveSync indicates state sync should be when leaving WaveShape 4 later
-    bool sqWaveSync;
-    if (waveShape == 4) sqWaveSync = OldSquareWaveSync; // OldSquareWaveSync is state of SquareWaveSync before entering WaveShape 4
-    else
-    {
-      if (timerMode == 1) sqWaveSync = 0;
-      else if (timerMode == 2) sqWaveSync = 1;
-    }
-    if (SquareWaveSync != sqWaveSync) ToggleSquareWaveSync(0);
-    if (TimerMode == 0 && timerMode > 0) // if entering timer mode
-    {
-      if ((timerMode == 1 && sqWaveSync) || (timerMode == 2 && !sqWaveSync)) ToggleSquareWaveSync(0); // will make EnterTimerMode() on next line set TimerMode correctly to either 1 or 2 (2 means Sync was on when timer entered)
-      EnterTimerMode();
-    }
-    else if (sweepMode > 0) EnterSweepMode();
-    if (defaultMode == 0 && squareWaveSync == 1) ToggleSquareWaveSync(0); // Sq Wave Sync always starts switched off, then is enabled here if required.
-    if (waveShape != WaveShape) // if changing wave shape
-    {
-      UserChars[1] = waveShape + 48; // 48 in ASCII = '0'
-      ChangeWaveShape(1);
-    }
-    if (defaultMode > 0 && squareWaveSync != SquareWaveSync) // if not at start-up & sync needs changing
-    {
-      if (waveShape != 4 && WaveShape == 4) ToggleSquareWaveSync(1); // 1 = exiting noise selection
-      else ToggleSquareWaveSync(0);
-    }
-    if (defaultMode < 2) // if not loading factory defaults
-    {
-      if (UsingGUI && sendToGUI) SendSettings(preset); // to GUI
-      if (dueFlashStorage.read((preset * 240) + 3) == 1 || dueFlashStorage.read((preset * 240) + 3) == 11) // if Arbitrary wave is included in Preset or Default
-      {
-        int16_t fi = 0; // flash memory index number
-        int16_t temp = 0;
-        int     startPos = 102400; // memory start position. 1st 11 presets (counting default at preset 0) end at 102396 = 12240 + 90156 (11 * 8196) then 102400 + 124320 (40 * 3108) = 226720
-        byte    presetNum = preset - 11; // preset 11 is at start position above, so call it presetNum 0
-        int16_t arbWavSp = 3108;  // arbitrary wave spacing (ArbitraryPointNumber is just before each wave)
-        if (preset < 11)
-        {
-          presetNum = preset;
-          startPos = 12240;
-          arbWavSp = 8196;
-        }
-        ArbitraryPointNumber = word(dueFlashStorage.read((presetNum * arbWavSp) + startPos - 2), dueFlashStorage.read((presetNum * arbWavSp) + startPos - 1)); // reconstruct value from 2 bytes read from flash
-        Serial.print(" ArbitraryPointNumber = "); Serial.println(ArbitraryPointNumber);
-        for(int ai = 0; ai <= ArbitraryPointNumber; ai++) // ai is arbitrary wave index number
-        {
-          temp = word(dueFlashStorage.read((presetNum * arbWavSp) + startPos + fi), dueFlashStorage.read((presetNum * arbWavSp) + startPos + 1 + fi)); // reconstruct value from 2 bytes read from flash
-          if (temp >= 5000) // if 1st part of step point
-          {
-            ArbitraryWaveStep[ai] = temp - 5000; // subtract 5000, which was added when saving 1st part of step point
-            fi += 2;
-            ArbitraryWave[ai] = word(dueFlashStorage.read((presetNum * arbWavSp) + startPos + fi), dueFlashStorage.read((presetNum * arbWavSp) + startPos + 1 + fi)); // 2nd part of step point - reconstruct value from 2 bytes read from flash
-          }
-          else // if not a step point
-          {
-            ArbitraryWaveStep[ai] = -1; // indicates not a step point
-            ArbitraryWave[ai] = temp; // normal point
-          }
-          fi += 2;
- //         Serial.print(" ArbWavStep[ai] = "); Serial.print(ArbitraryWaveStep[ai]); Serial.print(" ArbWave[ai] = "); Serial.println(ArbitraryWave[ai]);
-        }
-        ArbUpload = 1;
-        if (UsingGUI && sendToGUI) SendArbitraryWave(); // to GUI
-        if (WaveShape != 4) CreateWaveFull(2);
-      }
-      else if (UsingGUI && sendToGUI) Serial.print(">"); // inform GUI to skip receiving Arbitrary wave
-      
-    }
-  }
-  else dueFlashStorage.write(0, 0); // if (dueFlashStorage.read(0) > 0) // if just uploaded write 0 to address 0 to indicate it's NOT just uploaded, so in future the factory defaults won't be read & saved at start-up. This occurs only once when just uploaded
   if (defaultMode > 0) Setup2(); // otherwise if defaultMode == 0 (at start-up) return to normal setup()
-}
-
-void SaveToFlash(int preset) // save preset
-{
-  if (UsingGUI)
-  {
-    for (int i = 0; i < 40; i++)
-    {
-      dueFlashStorage.write((preset * 240) + 4 + i, Serial.read()); // GUI Setup Slider limits
-    }
-  }
-  Cfg.TargetFreq       = TargetFreq;     // = 1000;
-  Cfg.TargetWaveFreq   = TargetWaveFreq; // = 1000;
-  Cfg.TargetPeriod     = TargetPeriod;     // = 0; // 0 = not set
-  Cfg.TargetWavePeriod = TargetWavePeriod; // = 0; // 0 = not set
-  Cfg.TargetDuty       = TargetDuty;     // = 50;
-  Cfg.TargetWaveDuty   = TargetWaveDuty; // = 50;
-  Cfg.TargetPulseWidth     = TargetPulseWidth;     // = 0; // 0 = not set
-  Cfg.TargetWavePulseWidth = TargetWavePulseWidth; // = 0; // 0 = not set
-  Cfg.SweepMinFreq   = SweepMinFreq; //   = 20;
-  Cfg.SweepMaxFreq   = SweepMaxFreq; //   = 20000;
-  Cfg.SweepRiseTime  = SweepRiseTime; //  = 20;
-  Cfg.SweepFallTime  = SweepFallTime; //  = 20;
-  Cfg.PeriodD        = PeriodD; //        = 0;
-  Cfg.PeriodH        = PeriodH; //        = 0;
-  Cfg.PeriodM        = PeriodM; //        = 0;
-  Cfg.PeriodS        = PeriodS; //        = 10;  // seconds - Target time period for timer
-  Cfg.TimerMode      = TimerMode; //      = 0;
-  Cfg.SweepMode      = SweepMode; //      = 0;
-  Cfg.WaveShape      = WaveShape; //      = 0;
-  Cfg.ExactFreqMode  = ExactFreqMode; //  = 0;
-  if (WaveShape == 4) Cfg.SquareWaveSync = OldSquareWaveSync; // save the state sync was in before entering noise
-  else Cfg.SquareWaveSync = SquareWaveSync; // = 0;
-  Cfg.TimerInvert    = TimerInvert; //    = 0;
-  Cfg.PotsEnabled    = PotsEnabled; //    = 0;
-  Cfg.PotPulseWidth0 = PotPulseWidth[0]; // = 0; // [0]
-  Cfg.PotPulseWidth1 = PotPulseWidth[1]; // = 0; // [1]
-  Cfg.PotPeriodMode0 = PotPeriodMode[0]; // = 0; // [0]
-  Cfg.PotPeriodMode1 = PotPeriodMode[1]; // = 0; // [1]
-  Cfg.Range0         = Range[0]; //         = 1; // [0]
-  Cfg.Range1         = Range[1]; //         = 100; // [1]
-  Cfg.Range2         = Range[2]; //         = 1; // [2]
-  Cfg.Range3         = Range[3]; //         = 1; // [3]
-  Cfg.Control        = Control; //        = 2; // = 2;
-  Cfg.SinAmp         = SinAmp; //         = 1.0;  // Amplitude
-  Cfg.SinVshift      = SinVshift; //      = 0.5;  // Vertical shift
-  Cfg.SinPhase       = SinPhase; //       = 0.5;  // Phase shift
-  Cfg.SinFreq2       = SinFreq2; //       = 8;    // Sinewave 2 (2nd sinewave) Frequency Multiple. (X times Sinewave 1)
-  Cfg.SinAddMix      = SinAddMix; //      = 0;    // Sinewave 2 percentage Mix in Add Waves mode
-  Cfg.SinMulMix      = SinMulMix; //      = 0;    // Sinewave 2 percentage Mix in Multiply Waves mode
-  Cfg.TriAmp         = TriAmp; //         = 1.0;  // Amplitude / slope
-  Cfg.TriVshift      = TriVshift; //      = 0.5;  // Vertical shift
-  Cfg.TriPhase       = TriPhase; //       = 0.5;  // Phase shift
-  Cfg.TriNumS        = TriNumS; //        = 0;    // Number of Steps per half wave (0 = off)
-  Cfg.ArbAmp         = ArbAmp; //         = 1.0;  // Amplitude
-  Cfg.ArbVshift      = ArbVshift; //      = 0.5;  // Vertical shift
-  Cfg.ArbHzoom       = ArbHzoom; //       = 1.0;  // horizontal Zoom
-  Cfg.ArbHshift      = ArbHshift; //      = 0.5;  // Horizontal shift
-  Cfg.ArbMirror      = ArbMirror; //      = 0;    // half cycle Mirror effect (0 = off)
-  Cfg.ComSinAmp      = ComSinAmp; //      = 0.5;  // Sine Wave mix
-  Cfg.ComTriAmp      = ComTriAmp; //      = 0.5;  // Triangle Wave mix
-  Cfg.ComArbAmp      = ComArbAmp; //      = 0.5;  // Arbitrary Wave mix
-  Cfg.NoiseAmp       = NoiseAmp; //       = 100;  // Amplitude
-  Cfg.NoiseColour    = NoiseColour; //    = 500;  // Noise colour: 500 = Pink noise
-  byte bArray[sizeof(Configuration)]; // create byte array to store the structure
-  memcpy(bArray, &Cfg, sizeof(Configuration)); // copy the struct to the byte array
-// slider limits are at (preset * 240) + 4
-  dueFlashStorage.write((preset * 240) + 44, bArray, sizeof(Configuration)); // write byte array to flash at address 44 // GUI Setup Slider limits saved before address 44 // Start-up Default settings saved before address 240
-  dueFlashStorage.write((preset * 240) + 220, InterruptMode); // save music mode
-//  preset names are at (preset * 240) + 221
-  int rep = 0;
-  int16_t steps = 0;
-  int     startPos = 102400; // memory start position. 1st 11 presets (counting default at preset 0) end at 102396 = 12240 + 90156 (11 * 8196) then 102400 + 124320 (40 * 3108) = 226720
-  byte    presetNum = preset - 11; // preset 11 is at start position above, so call it presetNum 0
-  int16_t arbWavSp = 3108;  // arbitrary wave spacing (ArbitraryPointNumber is just before each wave)
-  int16_t maxWavNum = 3104; // max arbitrary wave size - number of bytes. 1552 16 bit int wave samples
-  int16_t chunk = 1552; // tempArb saved in chunks (2 x 1552 = 3104 bytes)
-  if (preset < 11)
-  {
-    presetNum = preset;
-    startPos = 12240;
-    arbWavSp = 8196;
-    maxWavNum = 8192; // number of bytes. 4096 16 bit int wave samples
-    chunk = 1024;
-  }
-  uint16_t arbitraryPointNumber = min(maxWavNum / 2, ArbitraryPointNumber);
-  byte tempArb[chunk];
-  if (arbitraryPointNumber > 0) // if Arbitrary wave has been uploaded and is present)
-  {
-    if (UsingGUI) dueFlashStorage.write((preset * 240) + 3, 1); // write 1 to address before start of Preset config to indicate it's been written to and arbitrary wave is included - up to 25 arbitrary waves can be saved to flash
-    else       dueFlashStorage.write((preset * 240) + 3, 11); // write 1 + 10 to address before start of Preset config to indicate it's been written to and arbitrary wave is included, but without SetupSliderLimit info
-    int16_t fi = 0; // flash memory index number
-//    Serial.print(" ArbPointNum = "); Serial.print(ArbitraryPointNumber); Serial.print("  arbPointNum = "); Serial.println(arbitraryPointNumber);
-    for (int ai = 0; ai <= arbitraryPointNumber; ai++) // ai is arbitrary wave index number
-    {
-      if (ArbitraryWaveStep[ai] >= 0 && ai < arbitraryPointNumber) // if stepped point & not past the last point
-      {
-        tempArb[fi    ] = highByte(ArbitraryWaveStep[ai] + 5000); // the added 5000 indicates 1st part of step point in wave (to be subtracted when read) - save to flash memory as 2 bytes
-        tempArb[fi + 1] =  lowByte(ArbitraryWaveStep[ai] + 5000); // the added 5000 indicates 1st part of step point in wave (to be subtracted when read) - save to flash memory as 2 bytes
-        fi += 2;
-        steps++;
-      }
-      if (fi >= chunk || ai == arbitraryPointNumber)
-      {
-  //      Serial.print(" ai = "); Serial.print(ai); Serial.print(" rep + fi = "); Serial.print(rep + fi); Serial.print(" st = "); Serial.print(ArbitraryWaveStep[ai]); Serial.print(" aw = "); Serial.println(ArbitraryWave[ai]);
-        dueFlashStorage.write((presetNum * arbWavSp) +  startPos + rep, tempArb, chunk); // min(2048, 4096 - rep - fi)); // write byte array to flash at address (preset * 8200) + 12240
-        rep += chunk;
-        if (rep >= maxWavNum || ai >= arbitraryPointNumber) break;
-        fi = 0;
-      }
-      tempArb[fi    ] =  highByte(ArbitraryWave[ai]); // usual point, or 2nd part of step point - save to flash memory as 2 bytes
-      tempArb[fi + 1] =   lowByte(ArbitraryWave[ai]); // usual point, or 2nd part of step point - save to flash memory as 2 bytes
-      fi += 2;
-      if (fi >= chunk || ai == arbitraryPointNumber)
-      {
- //       Serial.print(" ai2 = "); Serial.print(ai); Serial.print(" rep + fi = "); Serial.print(rep + fi); Serial.print(" st = "); Serial.print(ArbitraryWaveStep[ai]); Serial.print(" aw = "); Serial.println(ArbitraryWave[ai]);
-        dueFlashStorage.write((presetNum * arbWavSp) +  startPos + rep, tempArb, chunk); // min(2048, 4096 - rep - fi)); // write byte array to flash at address (preset * 8200) + 12240
-        rep += chunk;
-        if (rep >= maxWavNum) break;
-        fi = 0;
-      }
- //     if (ai >= arbitraryPointNumber - 1) {Serial.print(" ai3 = "); Serial.print(ai); Serial.print(" rep + fi = "); Serial.print(rep + fi); Serial.print(" st = "); Serial.print(ArbitraryWaveStep[ai]); Serial.print(" aw = "); Serial.println(ArbitraryWave[ai]);}
-    }
-    if (ArbitraryPointNumber + steps > maxWavNum / 2) arbitraryPointNumber -= ArbitraryPointNumber + steps - (maxWavNum / 2);
-//    Serial.print(" ArbPointNum = "); Serial.print(ArbitraryPointNumber); Serial.print("  arbPointNum = "); Serial.println(arbitraryPointNumber);
-    dueFlashStorage.write((presetNum * arbWavSp) + startPos - 2, highByte(arbitraryPointNumber)); // save to flash memory as 2 bytes - saved just before start of Arbitrary wave
-    dueFlashStorage.write((presetNum * arbWavSp) + startPos - 1,  lowByte(arbitraryPointNumber)); // save to flash memory as 2 bytes - saved just before start of Arbitrary wave
-  }
-  else
-  {
-    if (UsingGUI) dueFlashStorage.write((preset * 240) + 3, 0); // write 0 to address before start of Preset config to indicate it's been written to without arbitrary wave
-    else        dueFlashStorage.write((preset * 240) + 3, 10); // write 0 + 10 to address before start of Preset config to indicate it's been written to without arbitrary wave, and without SetupSliderLimit info
-  }
 }
 
 void CreateWaveFull(byte setupSelection) // WaveFull: for low freq use; prevents 'sample' noise at very low audio freq's (sample-skipping used without DMA)
@@ -1330,60 +928,6 @@ void Loop_DAWG()
         keyPressed = 1; // causes LED (on pin 48) to light
         UserInput = (UserInput * 10) + keyedInput;    
         Serial.print("   UserInput = "); Serial.println(UserInput, 0);
-        SwitchPressedTime = millis();
-      }
-      else if (!digitalRead(53)) // Load Preset
-      {
-        keyPressed = 1; // causes LED (on pin 48) to light
-        if (UserInput < 1 || UserInput > 50)
-        {
-          Serial.print("   Preset "); Serial.print(UserInput, 0); Serial.println(" does not exist!\n");
-        }
-        else if (dueFlashStorage.read((UserInput * 240) + 3) <= 11) // if Preset not empty
-        {
-          UserChars[2] = '!'; // indicates loading Defaults or Preset when changing WaveShape
-          Settings(1, UserInput, UsingGUI); // if Preset not empty, read it from flash in Settings() // send to GUI if Using GUI
-          UserChars[2] = ' '; // return to default
-          Serial.print("   Preset "); Serial.print(UserInput, 0); Serial.print(" loaded");
-          if (!UsingGUI)
-          {
-            if (UserInput < 30 && (dueFlashStorage.read((UserInput * 240) + 3) == 1 || dueFlashStorage.read((UserInput * 240) + 3) == 11)) Serial.print(" - including Arbitrary wave!"); // if Arbitrary wave included
-            else                                                                                                                            Serial.print(" - without Arbitrary wave!"); // if Arbitrary wave not included
-          }
-          Serial.println("\n");
-        }
-        else { Serial.print("   Preset "); Serial.print(UserInput, 0); Serial.println(" is empty!\n"); }
-        UserInput = 0;
-        SwitchPressedTime = millis();
-      }
-      else if (!digitalRead(52)) // Save Preset
-      {
-        keyPressed = 1; // causes LED (on pin 48) to light
-        if (UserInput < 1 || UserInput > 50)
-        {
-          Serial.print("   Preset "); Serial.print(UserInput, 0); Serial.println(" does not exist!\n");
-        }
-        else if (dueFlashStorage.read((UserInput * 240) + 3) > 11 || ClearPreset <= 50) // if Preset is empty OR received cofirmation to replace it
-        {
-          SaveToFlash(UserInput);
-          if (UsingGUI) { Serial.print("Preset "); Serial.print(UserInput, 0); Serial.println(" saved"); }
-          else
-          {
-            Serial.print("   Current Settings have been saved as Preset "); Serial.print(UserInput, 0);
-            if (dueFlashStorage.read((UserInput * 240) + 3) == 11 && UserInput < 30)  Serial.println(" - including Arbitrary wave!\n"); // if Arbitrary wave included
-            else                                                                    Serial.println(" - without Arbitrary wave!\n"); // if Arbitrary wave not included
-          }
-          UserInput = 0;
-          ClearPreset = 255; // reset
-          digitalWrite(50, LOW);
-        }
-        else if (dueFlashStorage.read((UserInput * 240) + 3) <= 11) // if Preset not empty
-        {
-          if (!UsingGUI) { Serial.print("   Preset "); Serial.print(UserInput, 0); Serial.println(" is not empty!\n   Do you want to replace it?  Type Y or N  (the N must be upper case)\n"); }
-          else Serial.println("Preset In Use");
-          ClearPreset = UserInput;
-          digitalWrite(50, HIGH);
-        }
         SwitchPressedTime = millis();
       }
       else if (!digitalRead(62)) // set FREQ - or Sweep MIN FREQ - or Timer DAYS
@@ -2319,48 +1863,12 @@ void Loop_DAWG()
             Serial.print(    "   Amplitude is "); Serial.print(int(NoiseAmp)); Serial.print(  " & Colour is "); Serial.println(int(NoiseColour)); Serial.println("\n");
           }
           break;
-        case 'G': // followed by 's' if GUI is at start-up
-          UsingGUI = 1;
-          Serial.println("Hello GUI");
-          if (Serial.peek() == 's') // if 'G' is followed by 's' then GUI is starting up (not Reconnecting)
-          {
-            Serial.read(); // clear 's'
-            uint8_t sIMM = dueFlashStorage.read(226748); // 100 = Stay In Music Mode after playing startup tune, and keep tune's wave settings
-            if (sIMM == 255) sIMM = 0;                  // 0 = load startup default settings after playing startup tune, may require exiting Music Mode
-            Serial.print("@"); // indicates sending start up tune data next
-            uint8_t startupTuneNum = dueFlashStorage.read(226749);
-            Serial.write(startupTuneNum + sIMM); // Start up Tune number, plus 100 if Staying In Music Mode after playing - send to GUI
-            uint8_t linkedPreset = dueFlashStorage.read((startupTuneNum % 100) - 1 + 226750); // if linked Preset number
-            if (dueFlashStorage.read((linkedPreset * 240) + 3) > 11) linkedPreset = 0; // if linked Preset is empty don't use it
-            if (StartupTune + sIMM <= 100 || linkedPreset == 0) // load default startup settings if no startup tune or if unlinked startup tune or if linked preset is empty
-            {
-              SendSettings(-1); // send default settings to GUI
-              if (dueFlashStorage.read(3) == 1) SendArbitraryWave(); // if Arbitrary wave is included in Default settings
-              else Serial.print(">"); // tells GUI to skip receiving Arbitrary wave
-            }
-          }
-          else StartupTune = 0; // if GUI is not at start-up
-          break;
         case 'w': // Change Wave Shape
           ChangeWaveShape(1);
           break;
         case 'e': // toggle ExactFreqMode
           if (WaveShape != 4) ToggleExactFreqMode(); // toggle ExactFreqMode if Noise not selected
           else Serial.print("   Cannot set Exact Freq Mode while Noise is enabled");
-          break;
-        case 'U':
-          if (TimerMode > 0) UserChars[3] = '>'; // continue searching below
-          else // unlink tune
-          {
-            int tune = Serial.parseInt();
-            if (tune < 1 || tune > 50)
-            {
-              Serial.print("   Tune "); Serial.print(tune); Serial.println(" does not exist!\n");
-              break;
-            }
-            dueFlashStorage.write(tune - 1 + 226750, 0); // 0 = indicates tune not empty & not linked to preset // 255 = empty
-            Serial.print("   Tune "); Serial.print(tune); Serial.println(" has been unlinked\n");
-          }
           break;
         case 'P':
           delay(1); // short delay to ensure next char is ready to be read correctly by Serial.peek()
@@ -2437,88 +1945,6 @@ void Loop_DAWG()
             Serial.println();
             TouchedTime = 0;
           break;
-        case 'l':
-          Serial.println();
-          delay(1); // short delay to ensure next char is ready to be read correctly by Serial.peek()
-          if (Serial.peek() == 'p') // if received "lp" - list preset usage command
-          {
-            for (byte i = 1; i <= 50; i++) // send List of Preset usage info. i = Preset Number
-            {
-              Serial.print("   Preset "); Serial.print(i);
-              byte usage = dueFlashStorage.read((i * 240) + 3); // read Preset Usage info from flash starting at address: (Preset address) + 3
-              if (usage > 11) Serial.print(" is empty");
-              else // read name, etc
-              {
-                Serial.print(" ");
-                for (byte ii = 0; ii < 22 ; ii++) // Read Name from flash memory, 1 character at a time
-                {
-                  char ch = dueFlashStorage.read((i * 240) + 221 + ii); // read Name from flash starting at address: (Preset address) + 220
-                  if (ch == '\n')
-                  {
-                    if (ii == 0) Serial.print("has no name");
-                    break;
-                  }
-                  Serial.print(ch);
-                }
-                if (usage == 1 || usage == 11) Serial.print(" - Arbitrary wave included");
-              }
-              Serial.println();
-            }
-          }
-          Serial.read(); // clear 'p' or 't'
-          Serial.println();
-          break;
-        case 'C':
-          delay(1); // short delay to ensure next char is ready to be read correctly by Serial.peek()
-          if (Serial.peek() == 'P') // if received "CP" - Clear Preset command
-          {
-            Serial.read(); // clear 'P'
-            int preset = Serial.parseInt();
-            if (preset < 1 || preset > 50)
-            {
-              Serial.print("   Preset "); Serial.print(preset); Serial.println(" does not exist!\n");
-              break;
-            }
-            else if (dueFlashStorage.read((preset * 240) + 3) > 11) { Serial.print("   Preset "); Serial.print(preset); Serial.println(" is already empty!\n"); } // if Preset is empty
-            else
-            {
-              if (!UsingGUI) { Serial.print("   Are you sure you want to clear Preset "); Serial.print(preset); Serial.println("?  Type Y or N  (the N must be upper case)\n"); }
-              ClearPreset = preset + 50; // + 50 means clear instead of replace // prevents "cleared" message being shown
-            }
-          }
-          break;
-        case 'y': // y = (yes) answer to question - can be upper or lower case
-        case 'Y': // Y = (Yes) answer to question - can be upper or lower case
-          if (ClearPreset <= 100)
-          {
-            if (ClearPreset <= 50) // if replacing Preset or start-up defaults
-            {
-              SaveToFlash(ClearPreset);
-              if (UsingGUI) { Serial.print("Preset "); Serial.print(ClearPreset); Serial.println(" saved"); }
-              else
-              {
-                if (ClearPreset > 0) { Serial.print("   Current Settings have been saved as Preset "); Serial.print(ClearPreset); }
-                else Serial.print("   Current Settings have been saved as Start-up Default ");
-                if (dueFlashStorage.read((ClearPreset * 240) + 3) == 11 && ClearPreset < 30)  Serial.println(" - including Arbitrary wave!\n"); // if Arbitrary wave included
-                else Serial.println(" - without Arbitrary wave!\n"); // if Arbitrary wave not included
-              }
-            }
-            else // if clearing Preset
-            {
-              ClearPreset -= 50;
-              dueFlashStorage.write((ClearPreset * 240) + 3, 255); // 255 means empty
-              dueFlashStorage.write((ClearPreset * 240) + 220, 255); // InterruptMode // 255 means empty
-              dueFlashStorage.write((ClearPreset * 240) + 221, '\n'); // set to '\n' so GUI can detect and count each Preset Name
-              Serial.print("   Preset "); Serial.print(ClearPreset); Serial.println(" cleared!\n"); // if question prompted by Clear Preset command
-            }
-            ClearPreset = 255; // 255 means empty
-          }
-          break;
-        case 'N': // N = (No) answer to question - must be upper case (lower case used for noise commands)
-          if (ClearPreset <= 100 || ClearTune <= 100) Serial.println("   Cancelled!\n");
-          ClearPreset = 255;
-          ClearTune = 255;
-          break;
         case 'F':
         case 'L':
         case 'S':
@@ -2549,41 +1975,7 @@ void Loop_DAWG()
               Settings(1, 0, UsingGUI); // send to GUI if using GUI
               UserChars[2] = ' '; // return to default
               LoadedPreset = 0;
-              if (UsingGUI) Serial.println("Defaults loaded");
-              else
-              {
-                Serial.print("   Start-up Default settings loaded");
-                if (dueFlashStorage.read(3) == 1 || dueFlashStorage.read(3) == 11) Serial.println(" - including Arbitrary wave!\n"); // if Arbitrary wave included
-                else                                                               Serial.println(" - without Arbitrary wave!\n"); // if Arbitrary wave not included
-              }
             }
-            else if (Serial.peek() == 'P') // Load Preset:
-            {
-              Serial.read(); // clear 'P'
-              int preset = Serial.parseInt();
-              if (preset < 1 || preset > 50)
-              {
-                Serial.print("   Preset "); Serial.print(preset); Serial.println(" does not exist!\n");
-                break;
-              }
-              if (dueFlashStorage.read((preset * 240) + 3) <= 11) // if Preset not empty
-              {
-                UserChars[2] = '!'; // indicates loading Defaults or Preset when changing WaveShape
-                NVIC_DisableIRQ(TC0_IRQn); // stop interrupts running if in music mode (to speed up loading settings)
-                Settings(1, preset, UsingGUI); // if Preset not empty, read it from flash in Settings() // send to GUI if using GUI
-                if (InterruptMode > 0) NVIC_EnableIRQ(TC0_IRQn); // start interrupts running if in modulation mode or music mode            
-                UserChars[2] = ' '; // return to default
-                LoadedPreset = preset;
-                Serial.print("   Preset "); Serial.print(preset); Serial.print(" loaded");
-                if (!UsingGUI)
-                {
-                  if (preset < 26 && (dueFlashStorage.read((preset * 240) + 3) == 1 || dueFlashStorage.read((preset * 240) + 3) == 11)) Serial.print(" - including Arbitrary wave!"); // if Arbitrary wave included
-                  else                                                                                                                  Serial.print(" - without Arbitrary wave!"); // if Arbitrary wave not included
-                }
-                Serial.println("\n");
-              }
-              else { Serial.print("   Preset "); Serial.print(preset); Serial.println(" is empty!\n"); }
-            }            
             break;
           }
           default:
@@ -2809,9 +2201,6 @@ void Loop_DAWG()
                   Serial.println(  "   Type:   R   to cycle through the Range of the pulse width pot: x1, x10, x100, x1000 & x10000.");
                   Serial.println(  "   Type:  LD   to Load start-up Default settings.");
                   Serial.println(  "   Type:  FD   to load Factory start-up Default settings.");
-                  Serial.println(  "   Type:  LPx  to Load Preset settings. The x is the Preset number: 1 to 50.");
-                  Serial.println(  "   Type:  CPx  to Clear Preset settings. The x is the Preset number: 1 to 50.");
-                  Serial.println(  "   Type:  lp   to view a List of Presets with their names.");
                   Serial.println(  "   Type:   ?   to display the current status.\n\n");
                   Serial.readString(); // ensures this help menu is not displayed multiple times if multiple chars are sent!
                 }
@@ -3124,51 +2513,6 @@ void SetDutyPulse() // DUTY CYCLE or PULSE WIDTH ADJUSTMENT: in % or microsecond
     Serial.print("   Unsync'ed Sq.Wave Period: "); PrintUnsyncedSqWavePeriod(); Serial.println("\n");
   }
 }
-
-void SaveSliderDefaults()
-{
-  dueFlashStorage.write(4, 2); // GUI Setup Slider Lo limit
-  dueFlashStorage.write(5, 19); // GUI Setup Slider Hi limit
-  dueFlashStorage.write(6, 3); // GUI Setup Slider Lo limit
-  dueFlashStorage.write(7, 18); // GUI Setup Slider Hi limit
-  dueFlashStorage.write(8, 9); // GUI Setup Slider Lo limit
-  dueFlashStorage.write(9, 12); // GUI Setup Slider Hi limit
-  dueFlashStorage.write(10, 11); // GUI Setup Slider Lo limit
-  dueFlashStorage.write(11, 15); // GUI Setup Slider Hi limit
-  dueFlashStorage.write(12, 10); // GUI Setup Slider Lo limit
-  dueFlashStorage.write(13, 17); // GUI Setup Slider Hi limit
-  dueFlashStorage.write(14, 10); // GUI Setup Slider Lo limit
-  dueFlashStorage.write(15, 17); // GUI Setup Slider Hi limit
-  dueFlashStorage.write(16, 2); // GUI Setup Slider Lo limit
-  dueFlashStorage.write(17, 19); // GUI Setup Slider Hi limit
-  dueFlashStorage.write(18, 3); // GUI Setup Slider Lo limit
-  dueFlashStorage.write(19, 18); // GUI Setup Slider Hi limit
-  dueFlashStorage.write(20, 9); // GUI Setup Slider Lo limit
-  dueFlashStorage.write(21, 12); // GUI Setup Slider Hi limit
-  dueFlashStorage.write(22, 10); // GUI Setup Slider Lo limit
-  dueFlashStorage.write(23, 15); // GUI Setup Slider Hi limit
-  dueFlashStorage.write(24, 2); // GUI Setup Slider Lo limit
-  dueFlashStorage.write(25, 19); // GUI Setup Slider Hi limit
-  dueFlashStorage.write(26, 3); // GUI Setup Slider Lo limit
-  dueFlashStorage.write(27, 18); // GUI Setup Slider Hi limit
-  dueFlashStorage.write(28, 2); // GUI Setup Slider Lo limit
-  dueFlashStorage.write(29, 19); // GUI Setup Slider Hi limit
-  dueFlashStorage.write(30, 3); // GUI Setup Slider Lo limit
-  dueFlashStorage.write(31, 18); // GUI Setup Slider Hi limit
-  dueFlashStorage.write(32, 10); // GUI Setup Slider Lo limit
-  dueFlashStorage.write(33, 11); // GUI Setup Slider Hi limit
-  dueFlashStorage.write(34, 2); // GUI Setup Slider Lo limit
-  dueFlashStorage.write(35, 19); // GUI Setup Slider Hi limit
-  dueFlashStorage.write(36, 2); // GUI Setup Slider Lo limit
-  dueFlashStorage.write(37, 19); // GUI Setup Slider Hi limit
-  dueFlashStorage.write(38, 2); // GUI Setup Slider Lo limit
-  dueFlashStorage.write(39, 19); // GUI Setup Slider Hi limit
-  dueFlashStorage.write(40, 10); // GUI Setup Slider Lo limit
-  dueFlashStorage.write(41, 18); // GUI Setup Slider Hi limit
-  dueFlashStorage.write(42, 10); // GUI Setup Slider Lo limit
-  dueFlashStorage.write(43, 20); // GUI Setup Slider Hi limit
-}
-
 void SendSettings(int preset) // to GUI
 {
   Serial.println("<<"); // indicates GUI start receiving
@@ -3217,54 +2561,7 @@ void SendSettings(int preset) // to GUI
   Serial.println(PeriodH         ); // = cfg.PeriodH; //        = 0;
   Serial.println(PeriodM         ); // = cfg.PeriodM; //        = 0;
   Serial.println(PeriodS         ); // = cfg.PeriodS; //        = 10; // seconds - Target time period for timer
-  if (preset < 0 || StartupTune > 0) // if at start-up send Preset Usage data
-  {
-    for (uint8_t i = 0; i <= 50; i++) // send Preset Usage data:
-    {
-      uint8_t musicMode = dueFlashStorage.read((i * 240) + 220); // saved interruptMode
-      if (musicMode == 255) musicMode = 0; // if nothing saved
-      Serial.write(dueFlashStorage.read((i * 240) + 3) + (20 * musicMode)); // add (20 * musicMode) to Usage data // send Preset Usage data
-    }
-    char ch = ' ';
-    for (uint8_t i = 1; i <= 50; i++) // send Preset Name data. i = Preset Number
-    {
-      for (uint8_t ii = 0; ii < 22 ; ii++) // Read Name from flash memory, 1 character at a time
-      {
-        ch = dueFlashStorage.read((i * 240) + 221 + ii); // Read Name from flash starting at address: (Preset address) + 220
-        Serial.print(ch);
-        if (ch == '\n') break;
-      }
-    }
-    for (uint8_t i = 0; i < 50; i++) // send Tune Usage data:
-    {
-      Serial.write(dueFlashStorage.read(226750 + i)); // send Tune Usage data: 255 = empty. 0 = indicates not linked to preset. 1 to 50 = preset number - sent to GUI
-   /*   uint8_t linkedPreset = dueFlashStorage.read(226750 + i); // 255 = tune empty // 0 = indicates not empty & not linked to preset // 1 to 50 = preset number linked to //'
-      uint8_t instrument = 0; // 0 = wave
-      if (linkedPreset == 0) // 0 = tune not linked. // (if linked, instrument must be wave)
-      {        
-        instrument = dueFlashStorage.read(226850 + i); // saved Instrument: 0 = wave, 1 = piano, 2 = guitar, etc. (can't be 255 if linkedPreset not 255)
-      }
-      else if (linkedPreset <= 50) linkedPreset += 100;
-      Serial.write(linkedPreset + instrument);*/ // send Tune Usage data: 255 = empty. 0 = indicates wave (and not empty) and not linked to preset. 101 to 150 = preset number (+ 100) the wave is linked to. 1 = piano, 2 = guitar, etc. sent to GUI
-    }
-    for (uint8_t tune = 0; tune < 50; tune++) // send Tune Name data:
-    {
-      for (uint8_t i = 0; i < 29 ; i++) // Read Tune Name from flash memory, 1 character at a time
-      {
-        ch = dueFlashStorage.read((tune * 29) + 226900 + i); // Read Tune Name character from flash
-        Serial.print(ch);
-        if (ch == '\n') break;
-      }
-    }
-  }
-  preset = max(0, preset);
-  if (dueFlashStorage.read((preset * 240) + 3) <= 1) // will be 0 or 1 if Preset or start-up default was created by GUI, 10 or 11 if created by Serial Monitor, or 255 if empty. If 1 or 11 an arbitrary wave is included.
-  {
-    for (uint8_t i = 0; i < 40; i++) // send GUI Setup Slider limits:
-    {
-      Serial.write(dueFlashStorage.read((preset * 240) + 4 + i)); // if Preset or start-up default was created by GUI, send GUI Setup Slider limits
-    }
-  }
+  
 }
 
 void SendArbitraryWave() // to GUI

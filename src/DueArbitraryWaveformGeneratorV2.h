@@ -1,8 +1,6 @@
 #include <Arduino.h>
 #include <debounce.h>
-#include <DueFlashStorage.h>
-#include <efc.h>
-#include <flash_efc.h>
+
 
 void Setup_DAWG();
 void Setup2();

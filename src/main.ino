@@ -1,8 +1,5 @@
 #include <Arduino.h>
 #include <debounce.h>
-#include <DueFlashStorage.h>
-#include <efc.h>
-#include <flash_efc.h>
 #include "costable.h"
 #include "DueArbitraryWaveformGeneratorV2.h"
 #include <Wire.h>
