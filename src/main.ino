@@ -54,15 +54,16 @@ unsigned long soundStopsAt = 0; //active playing sound, for convenience
 unsigned long currentMillis = 0;
 unsigned long sequenceToStop = 0;
 
-Adafruit_DS1841 ds; //logarithmic potentiometer DS1841
-int8_t potentiometerTap; //controls output of potentiometer, 0-127
-extern TwoWire Wire1; // use SCL1 & SDA1 for I2c to potentiometer
+Adafruit_DS1841 ds0; //logarithmic potentiometer DS1841
+Adafruit_DS1841 ds1; 
+int8_t potentiometerTap; //controls output of potentiometers, 0-127
+extern TwoWire Wire1; // use SCL1 & SDA1 for I2c to potentiometers
 
 static void playSound(int i) {
   Serial.println("Sound playing");
   //digitalWrite(RELAY_PIN, HIGH);
   digitalWrite(TTL_OUTPUT_PIN, HIGH);
-  //SinAmp = 100; CreateWaveFull(0);
+  UserChars[1] = '0'; ChangeWaveShape(true); //switch to sinus
   NoiseAmp = VOLUME;
   soundStartedAt = currentMillis; //schedule, for cosine fade
   soundStopsAt = soundToStop[i];
@@ -71,10 +72,8 @@ static void playSound(int i) {
 
 static void silenceSound(int i) {
   Serial.println("Sound silenced"); 
-  //DEBUG (WAS UNCOMMENTED) NoiseAmp = 0;
   //digitalWrite(RELAY_PIN, LOW);
   digitalWrite(TTL_OUTPUT_PIN, LOW);
-  //SinAmp = 0; CreateWaveFull(0);
   UserChars[1] = '2'; ChangeWaveShape(true); //switch to arbit
   NoiseAmp = 0;
   soundStartedAt = 0; //clear indication that sound is playing
@@ -117,7 +116,7 @@ static void testHandler(uint8_t btnId, uint8_t btnState) {
 }
 
 static void sequenceHandler(uint8_t btnId, uint8_t btnState) {
-  if ((btnState == BTN_PRESSED) && !soundToStop[SOUND_COUNT]) {
+  if ((btnState == BTN_PRESSED)) {
     Serial.println("Pressed sequence button");
     if(sequenceToStop) {
       Serial.println("Sequence already active");
@@ -137,6 +136,11 @@ static void stopHandler(uint8_t btnId, uint8_t btnState) {
   } else { // btnState == BTN_OPEN
     Serial.println("Released stop button");
   }
+
+  //DEBUG DEBUG DEBUG
+  potentiometerTap = 0; // loud
+  // ds0.setWiper(potentiometerTap);
+  // ds1.setWiper(potentiometerTap);
 }
 
 // Define button with a unique id (0) and handler function.
@@ -170,13 +174,20 @@ void setup() {
   // Try to initialize!
   Wire1.begin();        // join i2c bus
   delay(10);
-  while (!ds.begin(0x28, &Wire1)) {
-    Serial.println("Failed to find DS1841 chip");
-    Wire1.begin(); 
-    delay(100);
-  }
-  potentiometerTap = 127; // quiet (127 is max resistance, min volume)
-  ds.setWiper(potentiometerTap);
+  // while (!ds0.begin(0x28, &Wire1)) {
+  //   Serial.println("Failed to find DS1841 chip");
+  //   Wire1.begin(); 
+  //   delay(100);
+  // }
+  // while (!ds1.begin(0x2A, &Wire1)) {
+  //   Serial.println("Failed to find DS1841 chip");
+  //   Wire1.begin(); 
+  //   delay(100);
+  // }
+  //potentiometerTap = 127; // quiet (127 is max resistance, min volume)
+  potentiometerTap = 0; // loud
+  // ds0.setWiper(potentiometerTap);
+  // ds1.setWiper(potentiometerTap);
 
   
 
@@ -215,11 +226,13 @@ void loop() {
   if (soundStartedAt && elapsed < COSINE_PERIOD) { //in cosine gate at start, fade up
     uint16_t j = constrain((COS_TABLE_SIZE-1) * elapsed / COSINE_PERIOD, 0, COS_TABLE_SIZE-1);
     potentiometerTap = 127 * pgm_read_word_near(cosTable + j) / COS_TABLE_AMPLITUDE;
-    ds.setWiper(potentiometerTap);
+    // ds0.setWiper(potentiometerTap);
+    // ds1.setWiper(potentiometerTap);
   } if (soundStartedAt && soundStopsAt - currentMillis < COSINE_PERIOD) { //in cosine gate at end, fade down
     uint16_t j = constrain((COS_TABLE_SIZE-1) * remaining / COSINE_PERIOD, 0, COS_TABLE_SIZE-1);
     potentiometerTap = 127 * pgm_read_word_near(cosTable + j) / COS_TABLE_AMPLITUDE;
-    ds.setWiper(potentiometerTap);
+    // ds0.setWiper(potentiometerTap);
+    // ds1.setWiper(potentiometerTap);
   }
 
   Loop_DAWG(); //Due Arbitrary Waveform Generator - not my acronym haha
