@@ -79,19 +79,19 @@ int32_t frequency = 0;
 Adafruit_DS1841 ds0; //logarithmic potentiometer DS1841
 Adafruit_DS1841 ds1; 
 int8_t potentiometerTap; //controls output of potentiometers, 0-127
+int8_t potentiometerTap_old;
 extern TwoWire Wire1; // use SCL1 & SDA1 for I2c to potentiometers
 
 //'0' sinusoidal, '2' arbitrary wave (silence), '4' noise
 void changeWaveHelper(char shape) {
   UserChars[1] = shape; //set serial input to mimic e.g. 'w0' ie change to waveform 0 sinusoidal
   ChangeWaveShape(true);
-  UserChars[1] = ' ';
 }
 
 void changeFreqHelper(u_int16_t freq) {
   UserInput = freq; //set serial input to mimic e.g. '4000h' ie change to 4000 Hz frequency
   SetFreqPeriod();
-  CreateWaveFull(0);
+  CreateWaveFull(0); //the 0 specifies waveshape 0, sinusoidal
   UserInput = 0;
   frequency = freq;
 }
@@ -99,8 +99,8 @@ void changeFreqHelper(u_int16_t freq) {
 //Expects a number between 490 and 1,000,000 used as a coefficient for amplitude
 //490 is so minimum amplitude is 2/4096 since 12-bit DAC
 void changeVolumeHelper(u_int32_t amplitude) {
-  SinAmp = amplitude/1000000;
-  CreateWaveFull(0);
+  SinAmp = amplitude/1000000.0;
+  CreateWaveFull(0); //the 0 specifies waveshape 0, sinusoidal
   //TODO noiseamp
   volume = amplitude;
   Serial.print("Volume changed to "); Serial.print(volume); Serial.println("");
@@ -111,7 +111,6 @@ static void playSound(int i) {
   //digitalWrite(RELAY_PIN, HIGH);
   digitalWrite(TTL_OUTPUT_PIN, HIGH);
   changeWaveHelper(waveShape);
-  //NoiseAmp = VOLUME;
   soundStartedAt = currentMillis; //schedule, for cosine fade
   soundStopsAt = soundToStop[i];
   soundToStart[i] = 0; //clear the assignment
@@ -213,7 +212,7 @@ static void selectorHandler(uint8_t btnId, uint8_t btnState) {
       waveShape = SINUSOIDAL; //wave shape 0 is sinusoidal
       changeFreqHelper(btnId*1000); //btnId specifies frequency in kHz
     }
-    changeWaveHelper(waveShape); // DEBUG - for normal use do not want to actually change immediately because that would change away from silence.
+    //changeWaveHelper(waveShape); // DEBUG - for normal use do not want to actually change immediately because that would change away from silence.
   }
 }
 
@@ -258,7 +257,6 @@ void setup() {
   pinMode(TONE16_PIN, INPUT_PULLUP);
   pinMode(TONE32_PIN, INPUT_PULLUP);
 
-  //digitalWrite(RELAY_PIN, LOW);
   digitalWrite(RELAY_PIN, HIGH);
   
   // Try to initialize!
@@ -307,13 +305,21 @@ void loop() {
   if (soundStartedAt && elapsed < COSINE_PERIOD) { //in cosine gate at start, fade up
     uint16_t j = constrain((COS_TABLE_SIZE-1) * elapsed / COSINE_PERIOD, 0, COS_TABLE_SIZE-1);
     potentiometerTap = 127 * pgm_read_word_near(cosTable + j) / COS_TABLE_AMPLITUDE;
-    ds0.setWiper(potentiometerTap);
-    ds1.setWiper(potentiometerTap);
+    if (potentiometerTap != potentiometerTap_old) {
+      ds0.setWiper(potentiometerTap);
+      ds1.setWiper(potentiometerTap);
+      potentiometerTap_old = potentiometerTap;
+      //Serial.print("fade up"); Serial.print(potentiometerTap); Serial.println("");
+    }
   } if (soundStartedAt && soundStopsAt - currentMillis < COSINE_PERIOD) { //in cosine gate at end, fade down
     uint16_t j = constrain((COS_TABLE_SIZE-1) * remaining / COSINE_PERIOD, 0, COS_TABLE_SIZE-1);
     potentiometerTap = 127 * pgm_read_word_near(cosTable + j) / COS_TABLE_AMPLITUDE;
-    ds0.setWiper(potentiometerTap);
-    ds1.setWiper(potentiometerTap);
+    if (potentiometerTap != potentiometerTap_old) {
+      ds0.setWiper(potentiometerTap);
+      ds1.setWiper(potentiometerTap);
+      potentiometerTap_old = potentiometerTap;
+      //Serial.print("fade down"); Serial.print(potentiometerTap); Serial.println("");
+    } 
   }
 
   Loop_DAWG(); //Due Arbitrary Waveform Generator - not my acronym haha
