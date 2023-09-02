@@ -30,19 +30,19 @@
 
 // DO NOT EDIT
 // total duration of entire recording sequence, if defined sound_count instead of recording_duration
-const u_int32_t RECORDING_DURATION = SOUND_COUNT * (SOUND_DURATION + GAP_DURATION) + 2*BOOKEND_DURATION - GAP_DURATION;
+const uint32_t RECORDING_DURATION = SOUND_COUNT * (SOUND_DURATION + GAP_DURATION) + 2*BOOKEND_DURATION - GAP_DURATION;
 
 // VOLUME CALIBRATION
 // These are given as amplitude ratios of the waveform, i.e. direct control on arduino
 // In theory, each -10 dB is a multiplier of 0.316227766 to amplitude
 // Range of usable coefficients is 1,000,000 to 490 (for minimum amplitude of 490/1,000,000 = 2/4096 for 12 bit DAC)
-const u_int32_t volume_noise[9]  = {500000,158115,50000,15812,5000,1581,875,515,492};
-const u_int32_t volume_tone4[9]  = {500000,158115,50000,15812,5000,1581,875,515,492};
-const u_int32_t volume_tone8[9]  = {500000,158115,50000,15812,5000,1581,875,515,492};
-const u_int32_t volume_tone16[9] = {500000,158115,50000,15812,5000,1581,875,515,492};
-const u_int32_t volume_tone32[9] = {500000,158115,50000,15812,5000,1581,875,515,492};
-const u_int8_t  r[SOUND_COUNT] = {5,1,7,2,3,6,0,8,4,7,3,6,8,0,2,5,4,1}; //fixed random order to play the volumes in
-u_int32_t volume = 0;
+const uint32_t volume_noise[9]  = {500000,158115,50000,15812,5000,1581,875,515,492};
+const uint32_t volume_tone4[9]  = {500000,158115,50000,15812,5000,1581,875,515,492};
+const uint32_t volume_tone8[9]  = {500000,158115,50000,15812,5000,1581,875,515,492};
+const uint32_t volume_tone16[9] = {500000,158115,50000,15812,5000,1581,875,515,492};
+const uint32_t volume_tone32[9] = {500000,158115,50000,15812,5000,1581,875,515,492};
+const uint8_t  r[SOUND_COUNT] = {5,1,7,2,3,6,0,8,4,7,3,6,8,0,2,5,4,1}; //fixed random order to play the volumes in
+uint32_t volume = 0;
 
 //A2 56 and A4 58 are available, but do not use A3, causes noise on boot, stop before start, other weirdness
 //odd pins from 25 through 39 are available now
@@ -65,7 +65,7 @@ u_int32_t volume = 0;
 #define NOISE '4'
 #define SILENCE '2'
 
-u_int32_t soundAmplitude[SOUND_COUNT] = {0};
+uint32_t soundAmplitude[SOUND_COUNT] = {0};
 unsigned long soundToStart[SOUND_COUNT] = {0};
 unsigned long soundToStop[SOUND_COUNT] = {0};
 unsigned long soundStartedAt = 0; //active playing sound, for convenience
@@ -88,7 +88,7 @@ void changeWaveHelper(char shape) {
   ChangeWaveShape(true);
 }
 
-void changeFreqHelper(u_int16_t freq) {
+void changeFreqHelper(uint16_t freq) {
   UserInput = freq; //set serial input to mimic e.g. '4000h' ie change to 4000 Hz frequency
   SetFreqPeriod();
   CreateWaveFull(0); //the 0 specifies waveshape 0, sinusoidal
@@ -98,7 +98,7 @@ void changeFreqHelper(u_int16_t freq) {
 
 //Expects a number between 490 and 1,000,000 used as a coefficient for amplitude
 //490 is so minimum amplitude is 2/4096 since 12-bit DAC
-void changeVolumeHelper(u_int32_t amplitude) {
+void changeVolumeHelper(uint32_t amplitude) {
   SinAmp = amplitude/1000000.0;
   CreateWaveFull(0); //the 0 specifies waveshape 0, sinusoidal
   //TODO noiseamp
