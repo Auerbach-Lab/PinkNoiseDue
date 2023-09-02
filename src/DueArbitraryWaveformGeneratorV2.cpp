@@ -388,7 +388,7 @@ struct Configuration // The structure of the configuration for saving settings t
   float    ComSinAmp;   // = 0.5; // Composite Sinewave mix 0.5 = 50%
   float    ComTriAmp;   // = 0.5; // Composite Triangle Wave mix 0.5 = 50%
   float    ComArbAmp;   // = 0.5; // Composite Arbitrary Wave mix 0.5 = 50%
-  uint16_t NoiseAmp;    // = 100; // Noise Amplitude percentage 100 = 100%
+  uint32_t NoiseAmp;    // = 100; // Noise Amplitude percentage 1000000 = 100%
   uint16_t NoiseColour; // = 500; // Noise colour: 500 = Pink noise
 };
 Configuration Cfg; // initialize structure
@@ -1826,7 +1826,7 @@ void Loop_DAWG()
           }
           if (UserChars[1] == 'a')       // if received na
           {
-            NoiseAmp = constrain(UserInput, 0, 2000);
+            NoiseAmp = constrain(UserInput, 0, 1000000);
             Serial.print("   Noise Amplitude is "); Serial.println(UserInput); Serial.println("");
           }
           else if (UserChars[1] == 'c')
@@ -1845,7 +1845,7 @@ void Loop_DAWG()
           {
             Serial.println("\n   True Random Noise Generator Commands:       (\"Wave Shape\" 4)");
             Serial.println(  "   Type a number followed by:");
-            Serial.println(  "   na - noise Amplitude - range: 0 to 2000        (default = 100)");
+            Serial.println(  "   na - noise Amplitude - range: 0 to 1000000     (default = 100)");
             Serial.println(  "   nc - noise Colour    - range: 0 to 1000 (default = 500 - pink)\n");
             Serial.println(  "   Preset Noise Colours:      (only when noise is displayed)");
             Serial.println(  "   nw - sets noise colour to White (1000)");
@@ -3684,7 +3684,10 @@ void TC2_Handler() // write TRNG noise to analogue DAC pin - clocked at 150 kHz
     TrngSlo += (newReading - TrngSlo) * NoiseLFC / 100; // low freq filter - average
   }
   else TrngCount++;
-  DACC->DACC_CDR = constrain(((((TrngNum / 16) * NoiseFil / 100) + ((TrngSlo / 16) * NoiseLFB / 70) + ((fastR / 16) * NoiseHFB / 1000)) * NoiseAmp / 100) + HALFRESOL, 0, 4095); // reduce from 16 bit to 12 bit and adjust balance and amplitude
+  
+  foo = ((((TrngNum / 16) * NoiseFil / 100) + ((TrngSlo / 16) * NoiseLFB / 70) + ((fastR / 16) * NoiseHFB / 1000)) * 5) + HALFRESOL;
+  bar = foo * NoiseAmp/4096.0; // reduce from 16 bit to 12 bit and adjust balance and amplitude
+  DACC->DACC_CDR = constrain((uint16_t) bar, 0, 4095);;
 }
 
 void TC_setup() // system timer clock set-up for analogue wave & synchronized square wave when in fast mode

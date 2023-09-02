@@ -100,6 +100,7 @@ void changeFreqHelper(uint16_t freq) {
 //490 is so minimum amplitude is 2/4096 since 12-bit DAC
 void changeVolumeHelper(uint32_t amplitude) {
   SinAmp = amplitude/1000000.0;
+  NoiseAmp = amplitude;
   CreateWaveFull(0); //the 0 specifies waveshape 0, sinusoidal
   //TODO noiseamp
   volume = amplitude;
@@ -121,7 +122,6 @@ static void silenceSound(int i) {
   //digitalWrite(RELAY_PIN, LOW);
   digitalWrite(TTL_OUTPUT_PIN, LOW);
   changeWaveHelper(SILENCE); 
-  NoiseAmp = 0;
   soundStartedAt = 0; //clear the indication that sound is playing
   soundStopsAt = 0;
   soundToStop[i] = 0; //clear the assignment     
@@ -240,6 +240,9 @@ static void pollButtons() {
   tone32Button.update(digitalRead(TONE32_PIN));
 }
 
+uint16_t foo=0;
+float bar=0;
+
 void setup() { 
   Serial.begin(115200);
   analogReadResolution(12);
@@ -323,5 +326,6 @@ void loop() {
   }
 
   Loop_DAWG(); //Due Arbitrary Waveform Generator - not my acronym haha
+  Serial.print(foo); Serial.print("   "); Serial.print(bar); Serial.println("");
   delay(1);
 }

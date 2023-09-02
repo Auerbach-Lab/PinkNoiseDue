@@ -72,3 +72,5 @@ extern uint32_t WaveAmp;
 extern char     UserChars[5];
 extern double   UserInput;
 extern volatile boolean ExactFreqMode;
+extern uint16_t foo;
+extern float bar;
