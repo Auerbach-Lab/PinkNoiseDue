@@ -241,7 +241,8 @@ static void pollButtons() {
 }
 
 uint16_t foo=0;
-float bar=0;
+uint32_t bar=0;
+uint16_t baz=0;
 
 void setup() { 
   Serial.begin(115200);
@@ -326,6 +327,6 @@ void loop() {
   }
 
   Loop_DAWG(); //Due Arbitrary Waveform Generator - not my acronym haha
-  Serial.print(foo); Serial.print("   "); Serial.print(bar); Serial.println("");
+  Serial.print(foo); Serial.print("   "); Serial.print(bar); Serial.print("   "); Serial.print(baz);Serial.println("");
   delay(1);
 }

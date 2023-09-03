@@ -3685,9 +3685,11 @@ void TC2_Handler() // write TRNG noise to analogue DAC pin - clocked at 150 kHz
   }
   else TrngCount++;
   
-  foo = ((((TrngNum / 16) * NoiseFil / 100) + ((TrngSlo / 16) * NoiseLFB / 70) + ((fastR / 16) * NoiseHFB / 1000)) * 5) + HALFRESOL;
-  bar = foo * NoiseAmp/4096.0; // reduce from 16 bit to 12 bit and adjust balance and amplitude
-  DACC->DACC_CDR = constrain((uint16_t) bar, 0, 4095);;
+  // reduce from 16 bit to 12 bit and adjust balance and amplitude
+  foo = constrain(((((TrngNum / 16) * NoiseFil / 100) + ((TrngSlo / 16) * NoiseLFB / 70) + ((fastR / 16) * NoiseHFB / 1000)) * 3) + HALFRESOL, 0, 4095);
+  bar = foo * NoiseAmp >> 16; 
+  baz = constrain((uint16_t) (bar), 0, 4095);
+  DACC->DACC_CDR = baz;
 }
 
 void TC_setup() // system timer clock set-up for analogue wave & synchronized square wave when in fast mode
