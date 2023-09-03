@@ -65,6 +65,7 @@ void TC_setup8();
 void NoiseFilterSetup();
 void dac_setup();
 void dac_setup2();
+void updatePots(uint8_t);
 
 extern uint16_t NoiseAmp;
 extern float    SinAmp;
@@ -72,6 +73,3 @@ extern uint32_t WaveAmp;
 extern char     UserChars[5];
 extern double   UserInput;
 extern volatile boolean ExactFreqMode;
-extern uint16_t foo;
-extern uint32_t bar;
-extern uint16_t baz;

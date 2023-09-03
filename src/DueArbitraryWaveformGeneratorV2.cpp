@@ -1558,6 +1558,9 @@ void Loop_DAWG()
           }
           else if ((UserChars[0] == 'd' && UserInput >= 0 && UserInput <= 100) || UserChars[0] == 'u') SetDutyPulse(); // DUTY CYCLE or PULSE WIDTH ADJUSTMENT: in % or microseconds
           break;
+        case 't': 
+          updatePots(UserInput);
+          break;
         case 's':
           if (UsingGUI) {
             Serial.print("   You sent: ");
@@ -2187,6 +2190,7 @@ void Loop_DAWG()
                   Serial.println(  "   Type:   S   to enter the frequency Sweep mode - follow on-screen instructions.");
                   Serial.println(  "   Type:   T   to enter the Timer mode - follow on-screen instructions.");
                   Serial.println(  "   Type:   P   once to enable switches only, or twice for Pots. 3 times enables both.");
+                  Serial.println(  "   Type:  xt   to set volume potentiometers, where x is an integer (0 loud - 127 quiet)");
                   Serial.println(  "   Type:   f   to toggle between pot controlling Freq of wave, or period of wave.");
                   Serial.println(  "   Type:   p   to toggle between pot controlling duty-cycle Percent, or Pulse width of wave.");
                   Serial.println(  "   Type:   r   to cycle through the Range of the frequency/period pot: x1, x10, x100, x1000 & x10000.");
@@ -3686,10 +3690,9 @@ void TC2_Handler() // write TRNG noise to analogue DAC pin - clocked at 150 kHz
   else TrngCount++;
   
   // reduce from 16 bit to 12 bit and adjust balance and amplitude
-  foo = constrain(((((TrngNum / 16) * NoiseFil / 100) + ((TrngSlo / 16) * NoiseLFB / 70) + ((fastR / 16) * NoiseHFB / 1000)) * 3) + HALFRESOL, 0, 4095);
-  bar = foo * NoiseAmp >> 16; 
-  baz = constrain((uint16_t) (bar), 0, 4095);
-  DACC->DACC_CDR = baz;
+  uint16_t n = constrain(((((TrngNum / 16) * NoiseFil / 100) + ((TrngSlo / 16) * NoiseLFB / 70) + ((fastR / 16) * NoiseHFB / 1000)) * 3) + HALFRESOL, 0, 4095);
+  uint32_t a = n * NoiseAmp >> 16;
+  DACC->DACC_CDR = constrain((uint16_t) (a), 0, 4095);
 }
 
 void TC_setup() // system timer clock set-up for analogue wave & synchronized square wave when in fast mode

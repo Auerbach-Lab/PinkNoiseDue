@@ -35,14 +35,15 @@ const uint32_t RECORDING_DURATION = SOUND_COUNT * (SOUND_DURATION + GAP_DURATION
 // VOLUME CALIBRATION
 // These are given as amplitude ratios of the waveform, i.e. direct control on arduino
 // In theory, each -10 dB is a multiplier of 0.316227766 to amplitude
-// Range of usable coefficients is 1,000,000 to 490 (for minimum amplitude of 490/1,000,000 = 2/4096 for 12 bit DAC)
-const uint32_t volume_noise[9]  = {500000,158115,50000,15812,5000,1581,875,515,492};
-const uint32_t volume_tone4[9]  = {500000,158115,50000,15812,5000,1581,875,515,492};
-const uint32_t volume_tone8[9]  = {500000,158115,50000,15812,5000,1581,875,515,492};
-const uint32_t volume_tone16[9] = {500000,158115,50000,15812,5000,1581,875,515,492};
-const uint32_t volume_tone32[9] = {500000,158115,50000,15812,5000,1581,875,515,492};
+// Range of usable coefficients is 1,000,000 to 489 (for minimum amplitude of 489/1,000,000 = 2/4096 for 12 bit DAC)
+// Coefficients for noise are up through 65535 and lowest three are sentinel values for altering volume with potentiometers
+const uint32_t volume_noise[9]  = {65535,23000,7300,2300,730,200,199,198,197};
+const uint32_t volume_tone4[9]  = {460000,145000,46000,14500,5200,1900,800,505,491};
+const uint32_t volume_tone8[9]  = {320000,100000,32000,10250,3500,1400,580,495,489};
+const uint32_t volume_tone16[9] = {700000,225000,75000,23000,8500,2800,1200,525,492};
+const uint32_t volume_tone32[9] = {1000000,316228,100000,31623,10000,3500,1500,580,502};
 const uint8_t  r[SOUND_COUNT] = {5,1,7,2,3,6,0,8,4,7,3,6,8,0,2,5,4,1}; //fixed random order to play the volumes in
-uint32_t volume = 0;
+
 
 //A2 56 and A4 58 are available, but do not use A3, causes noise on boot, stop before start, other weirdness
 //odd pins from 25 through 39 are available now
@@ -62,8 +63,8 @@ uint32_t volume = 0;
 
 // wave shapes
 #define SINUSOIDAL '0'
-#define NOISE '4'
 #define SILENCE '2'
+#define NOISE '4'
 
 uint32_t soundAmplitude[SOUND_COUNT] = {0};
 unsigned long soundToStart[SOUND_COUNT] = {0};
@@ -75,12 +76,23 @@ unsigned long sequenceToStop = 0;
 
 char waveShape = SILENCE; // changing this here has no effect on startup value, startup is controlled by the DAWG library
 int32_t frequency = 0;
+uint32_t volume = 0;
 
+extern TwoWire Wire1; // use SCL1 & SDA1 for I2c to potentiometers
 Adafruit_DS1841 ds0; //logarithmic potentiometer DS1841
 Adafruit_DS1841 ds1; 
-int8_t potentiometerTap; //controls output of potentiometers, 0-127
-int8_t potentiometerTap_old;
-extern TwoWire Wire1; // use SCL1 & SDA1 for I2c to potentiometers
+int8_t potTap = 0; //controls output of potentiometers, 0-127
+int8_t potTap_old = -1;
+int8_t potTap_min = 0;
+
+void updatePots(uint8_t tap) {
+  if (tap != potTap_old) {
+    ds0.setWiper(tap);
+    ds1.setWiper(tap);
+    potTap_old = tap;
+    //Serial.print("fade "); Serial.print(tap); Serial.println("");
+  } 
+}
 
 //'0' sinusoidal, '2' arbitrary wave (silence), '4' noise
 void changeWaveHelper(char shape) {
@@ -96,20 +108,31 @@ void changeFreqHelper(uint16_t freq) {
   frequency = freq;
 }
 
-//Expects a number between 490 and 1,000,000 used as a coefficient for amplitude
-//490 is so minimum amplitude is 2/4096 since 12-bit DAC
+//Expects a number between 489 and 1,000,000 used as a coefficient for amplitude
+//(or 10-65535 for noise)
 void changeVolumeHelper(uint32_t amplitude) {
-  SinAmp = amplitude/1000000.0;
-  NoiseAmp = amplitude;
-  CreateWaveFull(0); //the 0 specifies waveshape 0, sinusoidal
-  //TODO noiseamp
+  potTap_min = 0; //reset minimum by default, regardless of shape
+  if (waveShape == SINUSOIDAL) {
+    SinAmp = amplitude/1000000.0; //sinamp is a float
+    CreateWaveFull(0); //the 0 specifies waveshape 0, sinusoidal
+  } else {
+    NoiseAmp = (uint16_t) amplitude; //noiseamp is a uint32_t
+    //noiseamp takes effect immediately, no need to rebuild wave
+
+    //hacky fix for getting the lowest volumes from noise: use the potentiometers
+    //lowest three volumes are amplitudes of 199,198,197
+    //both pots at 75 gives -10dB, both at 109 gives -20 dB, both at 125 gives -30 dB
+    if (amplitude == 199) potTap_min = 75;
+    if (amplitude == 198) potTap_min = 109;
+    if (amplitude == 197) potTap_min = 125;
+  } 
   volume = amplitude;
   Serial.print("Volume changed to "); Serial.print(volume); Serial.println("");
 }
 
 static void playSound(int i) {
   Serial.println("Sound playing");
-  //digitalWrite(RELAY_PIN, HIGH);
+  digitalWrite(RELAY_PIN, HIGH);
   digitalWrite(TTL_OUTPUT_PIN, HIGH);
   changeWaveHelper(waveShape);
   soundStartedAt = currentMillis; //schedule, for cosine fade
@@ -119,7 +142,7 @@ static void playSound(int i) {
 
 static void silenceSound(int i) {
   Serial.println("Sound silenced"); 
-  //digitalWrite(RELAY_PIN, LOW);
+  digitalWrite(RELAY_PIN, LOW);
   digitalWrite(TTL_OUTPUT_PIN, LOW);
   changeWaveHelper(SILENCE); 
   soundStartedAt = 0; //clear the indication that sound is playing
@@ -194,11 +217,6 @@ static void stopHandler(uint8_t btnId, uint8_t btnState) {
   } else { // btnState == BTN_OPEN
     Serial.println("Released stop button");
   }
-
-  //DEBUG DEBUG DEBUG
-  potentiometerTap = 0; // loud
-  // ds0.setWiper(potentiometerTap);
-  // ds1.setWiper(potentiometerTap);
 }
 
 static void selectorHandler(uint8_t btnId, uint8_t btnState) {
@@ -212,7 +230,17 @@ static void selectorHandler(uint8_t btnId, uint8_t btnState) {
       waveShape = SINUSOIDAL; //wave shape 0 is sinusoidal
       changeFreqHelper(btnId*1000); //btnId specifies frequency in kHz
     }
-    //changeWaveHelper(waveShape); // DEBUG - for normal use do not want to actually change immediately because that would change away from silence.
+    if (waveShape == NOISE) {
+      changeVolumeHelper(volume_noise[0]);
+    } else if (frequency == 4000) {
+      changeVolumeHelper(volume_tone4[0]);
+    } else if (frequency == 8000) {
+      changeVolumeHelper(volume_tone8[0]);
+    } else if (frequency == 16000) {
+      changeVolumeHelper(volume_tone16[0]);
+    } else if (frequency == 32000) {
+      changeVolumeHelper(volume_tone32[0]);
+    }
   }
 }
 
@@ -240,10 +268,6 @@ static void pollButtons() {
   tone32Button.update(digitalRead(TONE32_PIN));
 }
 
-uint16_t foo=0;
-uint32_t bar=0;
-uint16_t baz=0;
-
 void setup() { 
   Serial.begin(115200);
   analogReadResolution(12);
@@ -261,7 +285,7 @@ void setup() {
   pinMode(TONE16_PIN, INPUT_PULLUP);
   pinMode(TONE32_PIN, INPUT_PULLUP);
 
-  digitalWrite(RELAY_PIN, HIGH);
+  digitalWrite(RELAY_PIN, LOW);
   
   // Try to initialize!
   Wire1.begin();        // join i2c bus
@@ -276,25 +300,20 @@ void setup() {
     Wire1.begin(); 
     delay(100);
   }
-  //potentiometerTap = 127; // quiet (127 is max resistance, min volume)
-  potentiometerTap = 0; // loud
-  ds0.setWiper(potentiometerTap);
-  ds1.setWiper(potentiometerTap);
   
-  Setup_DAWG(); //Due Arbitrary Waveform Generator - not my acronym haha
-  //NoiseAmp=VOLUME; //DEBUG (WAS 0) -- this only controls noise (not waveform) amplitude
+  potTap = 127; // quiet (max resistance) | 0 is loud (min resistance)
+  updatePots(potTap);
+  Setup_DAWG(); //Due Arbitrary Waveform Generator - not my acronym haha  
   if (ExactFreqMode) ToggleExactFreqMode(); //we DON'T want to be in exact mode, which has nasty harmonics at 32khz
-
-  //TODO: May need to turn SinAmp into uint32_t and replace waveAmp for use in fastmode
-  //TODO: May want to turn NoiseAmp into a uint32_t as well and work on same scale? And change divisions to shifts?
-  //Need to test getting 90-30 dB of noise
 }
 
 void loop() { 
   pollButtons();
   currentMillis = millis();
-  //Serial.print("Wiper: "); Serial.print(ds.getWiper()); Serial.println(" LSB");
+  float elapsed = currentMillis - soundStartedAt; //float so we get reasonable math below rather than integer math
+  float remaining = soundStopsAt - currentMillis;
 
+  //specify volume for next sound shortly (1s) before it plays
   for (unsigned int i=0; i < SOUND_COUNT; i++) {
     if (!soundStartedAt && soundToStart[i] && (currentMillis + 1000 > soundToStart[i])) {
       if (volume != soundAmplitude[i]) {changeVolumeHelper(soundAmplitude[i]);}
@@ -304,29 +323,20 @@ void loop() {
     if (sequenceToStop && (currentMillis > sequenceToStop)) {stopSequence();}
   }
 
-  float elapsed = currentMillis - soundStartedAt; //float so we get reasonable math below rather than integer math
-  float remaining = soundStopsAt - currentMillis;
+  //play sound, fading up or down as needed
+  uint16_t j;
   if (soundStartedAt && elapsed < COSINE_PERIOD) { //in cosine gate at start, fade up
-    uint16_t j = constrain((COS_TABLE_SIZE-1) * elapsed / COSINE_PERIOD, 0, COS_TABLE_SIZE-1);
-    potentiometerTap = 127 * pgm_read_word_near(cosTable + j) / COS_TABLE_AMPLITUDE;
-    if (potentiometerTap != potentiometerTap_old) {
-      ds0.setWiper(potentiometerTap);
-      ds1.setWiper(potentiometerTap);
-      potentiometerTap_old = potentiometerTap;
-      //Serial.print("fade up"); Serial.print(potentiometerTap); Serial.println("");
-    }
+    j = constrain((COS_TABLE_SIZE-1) * elapsed / COSINE_PERIOD, 0, COS_TABLE_SIZE-1);
+    potTap = potTap_min + (127-potTap_min) * pgm_read_word_near(cosTable + j) / COS_TABLE_AMPLITUDE;
+    updatePots(potTap);
   } if (soundStartedAt && soundStopsAt - currentMillis < COSINE_PERIOD) { //in cosine gate at end, fade down
-    uint16_t j = constrain((COS_TABLE_SIZE-1) * remaining / COSINE_PERIOD, 0, COS_TABLE_SIZE-1);
-    potentiometerTap = 127 * pgm_read_word_near(cosTable + j) / COS_TABLE_AMPLITUDE;
-    if (potentiometerTap != potentiometerTap_old) {
-      ds0.setWiper(potentiometerTap);
-      ds1.setWiper(potentiometerTap);
-      potentiometerTap_old = potentiometerTap;
-      //Serial.print("fade down"); Serial.print(potentiometerTap); Serial.println("");
-    } 
+    j = constrain((COS_TABLE_SIZE-1) * remaining / COSINE_PERIOD, 0, COS_TABLE_SIZE-1);
+    potTap = potTap_min + (127-potTap_min) * pgm_read_word_near(cosTable + j) / COS_TABLE_AMPLITUDE;
+    updatePots(potTap);
   }
+  
 
   Loop_DAWG(); //Due Arbitrary Waveform Generator - not my acronym haha
-  Serial.print(foo); Serial.print("   "); Serial.print(bar); Serial.print("   "); Serial.print(baz);Serial.println("");
-  delay(100);
+  //Serial.print(foo); Serial.print("   "); Serial.print(bar); Serial.print("   "); Serial.print(baz);Serial.println("");
+  delay(1); //sound production itself is interrupt-driven, so this just spends less time in the keypad processing and fading volumes
 }
