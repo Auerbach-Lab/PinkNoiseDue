@@ -145,6 +145,7 @@ static void silenceSound(int i) {
   digitalWrite(RELAY_PIN, LOW);
   digitalWrite(TTL_OUTPUT_PIN, LOW);
   changeWaveHelper(SILENCE); 
+  NoiseAmp = 0;
   soundStartedAt = 0; //clear the indication that sound is playing
   soundStopsAt = 0;
   soundToStop[i] = 0; //clear the assignment     
@@ -285,6 +286,7 @@ void setup() {
   pinMode(TONE16_PIN, INPUT_PULLUP);
   pinMode(TONE32_PIN, INPUT_PULLUP);
 
+  //digitalWrite(RELAY_PIN, HIGH);
   digitalWrite(RELAY_PIN, LOW);
   
   // Try to initialize!
@@ -305,6 +307,7 @@ void setup() {
   updatePots(potTap);
   Setup_DAWG(); //Due Arbitrary Waveform Generator - not my acronym haha  
   if (ExactFreqMode) ToggleExactFreqMode(); //we DON'T want to be in exact mode, which has nasty harmonics at 32khz
+  NoiseAmp = 0;
 }
 
 void loop() { 
