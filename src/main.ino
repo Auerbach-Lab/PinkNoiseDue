@@ -328,5 +328,5 @@ void loop() {
 
   Loop_DAWG(); //Due Arbitrary Waveform Generator - not my acronym haha
   Serial.print(foo); Serial.print("   "); Serial.print(bar); Serial.print("   "); Serial.print(baz);Serial.println("");
-  delay(1);
+  delay(100);
 }
