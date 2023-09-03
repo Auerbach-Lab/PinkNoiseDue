@@ -14,14 +14,6 @@
 #define COSINE_PERIOD          500   // ms duration of cosine gate function, must be less than or equal to 1/2 SOUND_DURATION
 #define SOUND_COUNT             18   // total number of samples to play
 
-//DEBUG DEBUG DEBUG
-#define BOOKEND_DURATION     1000   // ms duration of silence at beginning and end, must be less than 1/2 RECORDING_DURATION
-#define GAP_DURATION         2000   // ms between sounds
-#define SOUND_DURATION        5000   // ms duration of sound to play
-#define COSINE_PERIOD          500   // ms duration of cosine gate function, must be less than or equal to 1/2 SOUND_DURATION
-#define SOUND_COUNT             18   // total number of samples to play
-//DEBUG DEBUG DEBUG
-
 // DO NOT EDIT 
 // total number of sounds that will play, if defined recording_duration above
 // +GAP in numerator because last tone does not need GAP included to fit
@@ -42,7 +34,7 @@ const uint32_t volume_tone4[9]  = {460000,145000,46000,14500,5200,1900,800,505,4
 const uint32_t volume_tone8[9]  = {320000,100000,32000,10250,3500,1400,580,495,489};
 const uint32_t volume_tone16[9] = {700000,225000,75000,23000,8500,2800,1200,525,492};
 const uint32_t volume_tone32[9] = {1000000,316228,100000,31623,10000,3500,1500,580,502};
-const uint8_t  r[SOUND_COUNT] = {5,1,7,2,3,6,0,8,4,7,3,6,8,0,2,5,4,1}; //fixed random order to play the volumes in
+const uint8_t  r[SOUND_COUNT] = {5,1,7,2,3,6,0,8,4,7,3,8,6,0,2,5,4,1}; //fixed random order to play the volumes in
 
 
 //A2 56 and A4 58 are available, but do not use A3, causes noise on boot, stop before start, other weirdness
@@ -132,7 +124,7 @@ void changeVolumeHelper(uint32_t amplitude) {
 
 static void playSound(int i) {
   Serial.println("Sound playing");
-  digitalWrite(RELAY_PIN, HIGH);
+  //digitalWrite(RELAY_PIN, HIGH);
   digitalWrite(TTL_OUTPUT_PIN, HIGH);
   changeWaveHelper(waveShape);
   soundStartedAt = currentMillis; //schedule, for cosine fade
@@ -142,7 +134,7 @@ static void playSound(int i) {
 
 static void silenceSound(int i) {
   Serial.println("Sound silenced"); 
-  digitalWrite(RELAY_PIN, LOW);
+  //digitalWrite(RELAY_PIN, LOW);
   digitalWrite(TTL_OUTPUT_PIN, LOW);
   changeWaveHelper(SILENCE); 
   NoiseAmp = 0;
@@ -286,8 +278,8 @@ void setup() {
   pinMode(TONE16_PIN, INPUT_PULLUP);
   pinMode(TONE32_PIN, INPUT_PULLUP);
 
-  //digitalWrite(RELAY_PIN, HIGH);
-  digitalWrite(RELAY_PIN, LOW);
+  digitalWrite(RELAY_PIN, HIGH);
+  //digitalWrite(RELAY_PIN, LOW);
   
   // Try to initialize!
   Wire1.begin();        // join i2c bus
@@ -341,5 +333,5 @@ void loop() {
 
   Loop_DAWG(); //Due Arbitrary Waveform Generator - not my acronym haha
   //Serial.print(foo); Serial.print("   "); Serial.print(bar); Serial.print("   "); Serial.print(baz);Serial.println("");
-  delay(1); //sound production itself is interrupt-driven, so this just spends less time in the keypad processing and fading volumes
+  delay(0); //sound production itself is interrupt-driven, so this just spends less time in the keypad processing and fading volumes
 }
