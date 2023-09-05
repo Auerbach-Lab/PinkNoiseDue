@@ -11,7 +11,7 @@
 #define BOOKEND_DURATION     60000   // ms duration of silence at beginning and end, must be less than 1/2 RECORDING_DURATION
 #define GAP_DURATION         25000   // ms between sounds
 #define SOUND_DURATION        5000   // ms duration of sound to play
-#define COSINE_PERIOD           50   // ms duration of cosine gate function, must be less than or equal to 1/2 SOUND_DURATION
+#define COSINE_PERIOD            1   // ms duration of cosine gate function, must be less than or equal to 1/2 SOUND_DURATION
 #define SOUND_COUNT             18   // total number of samples to play
 
 // DO NOT EDIT 
