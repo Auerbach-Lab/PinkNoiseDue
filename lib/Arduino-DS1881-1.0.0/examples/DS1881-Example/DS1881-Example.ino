@@ -66,8 +66,8 @@ void printHelp() {
 
 void setup() {
   Serial.begin(115200);
-  Wire.setSDA(SDA_PIN);
-  Wire.setSCL(SCL_PIN);
+  //Wire.setSDA(SDA_PIN);
+  //Wire.setSCL(SCL_PIN);
   Wire.begin();
   ds1881.init(&Wire);
 }
