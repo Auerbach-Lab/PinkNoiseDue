@@ -11,7 +11,7 @@
 #define BOOKEND_DURATION     60000   // ms duration of silence at beginning and end, must be less than 1/2 RECORDING_DURATION
 #define GAP_DURATION         25000   // ms between sounds
 #define SOUND_DURATION        5000   // ms duration of sound to play
-#define COSINE_PERIOD          500   // ms duration of cosine gate function, must be less than or equal to 1/2 SOUND_DURATION
+#define COSINE_PERIOD          100   // ms duration of cosine gate function, must be less than or equal to 1/2 SOUND_DURATION
 #define SOUND_COUNT             18   // total number of samples to play
 
 // DO NOT EDIT 
@@ -82,7 +82,7 @@ void updatePots(uint8_t tap) {
     ds0.setWiper(tap);
     ds1.setWiper(tap);
     potTap_old = tap;
-    //Serial.print("fade "); Serial.print(tap); Serial.println("");
+    Serial.print("fade "); Serial.print(tap); Serial.println("");
   } 
 }
 
@@ -124,20 +124,19 @@ void changeVolumeHelper(uint32_t amplitude) {
 
 static void playSound(int i) {
   Serial.println("Sound playing");
-  //digitalWrite(RELAY_PIN, HIGH);
+  digitalWrite(RELAY_PIN, HIGH);
   digitalWrite(TTL_OUTPUT_PIN, HIGH);
   changeWaveHelper(waveShape);
-  soundStartedAt = currentMillis; //schedule, for cosine fade
+  soundStartedAt = millis(); //schedule, for cosine fade
   soundStopsAt = soundToStop[i];
   soundToStart[i] = 0; //clear the assignment
 }
 
 static void silenceSound(int i) {
   Serial.println("Sound silenced"); 
-  //digitalWrite(RELAY_PIN, LOW);
-  digitalWrite(TTL_OUTPUT_PIN, LOW);
   changeWaveHelper(SILENCE); 
-  NoiseAmp = 0;
+  digitalWrite(TTL_OUTPUT_PIN, LOW);
+  digitalWrite(RELAY_PIN, LOW); 
   soundStartedAt = 0; //clear the indication that sound is playing
   soundStopsAt = 0;
   soundToStop[i] = 0; //clear the assignment     
@@ -184,7 +183,7 @@ static void testHandler(uint8_t btnId, uint8_t btnState) {
     Serial.print("Released test button, test to stop in ");
     Serial.print(COSINE_PERIOD);
     Serial.println(" ms.");
-    soundToStop[0] = max(currentMillis, soundStartedAt+COSINE_PERIOD) + COSINE_PERIOD;    //silenceSound();
+    soundToStop[0] = max(currentMillis, soundStartedAt+COSINE_PERIOD) + COSINE_PERIOD;
     soundStopsAt = soundToStop[0];
   }
 }
@@ -204,15 +203,20 @@ static void sequenceHandler(uint8_t btnId, uint8_t btnState) {
 
 static void stopHandler(uint8_t btnId, uint8_t btnState) {
   if (btnState == BTN_PRESSED) {
-    Serial.println("Pressed stop button");
+    Serial.println("Pressed abort button");
     silenceSound(0); // stop active sound, if any
     stopSequence(); // unschedule all sounds
   } else { // btnState == BTN_OPEN
-    Serial.println("Released stop button");
+    Serial.println("Released abort button");
   }
 }
 
 static void selectorHandler(uint8_t btnId, uint8_t btnState) {
+  //First, process an abort since scheduled volumes will be wrong
+  silenceSound(0); // stop active sound, if any
+  stopSequence(); // unschedule all sounds
+
+  //Then..
   if (btnState == BTN_PRESSED) {
     if (btnId == 3) { //pink noise setting
       Serial.println("Selected pink noise");
@@ -277,9 +281,6 @@ void setup() {
   pinMode(TONE8_PIN, INPUT_PULLUP);
   pinMode(TONE16_PIN, INPUT_PULLUP);
   pinMode(TONE32_PIN, INPUT_PULLUP);
-
-  digitalWrite(RELAY_PIN, HIGH);
-  //digitalWrite(RELAY_PIN, LOW);
   
   // Try to initialize!
   Wire1.begin();        // join i2c bus
@@ -295,6 +296,8 @@ void setup() {
     delay(100);
   }
   
+  //digitalWrite(RELAY_PIN, HIGH);
+  digitalWrite(RELAY_PIN, LOW);
   potTap = 127; // quiet (max resistance) | 0 is loud (min resistance)
   updatePots(potTap);
   Setup_DAWG(); //Due Arbitrary Waveform Generator - not my acronym haha  
@@ -305,29 +308,48 @@ void setup() {
 void loop() { 
   pollButtons();
   currentMillis = millis();
-  float elapsed = currentMillis - soundStartedAt; //float so we get reasonable math below rather than integer math
-  float remaining = soundStopsAt - currentMillis;
-
-  //specify volume for next sound shortly (1s) before it plays
+  static unsigned long elapsed;
+  static unsigned long remaining;
+  
   for (unsigned int i=0; i < SOUND_COUNT; i++) {
+    //specify volume for next sound shortly (1s) before it plays
     if (!soundStartedAt && soundToStart[i] && (currentMillis + 1000 > soundToStart[i])) {
       if (volume != soundAmplitude[i]) {changeVolumeHelper(soundAmplitude[i]);}
     }
+    //play sound
     if (!soundStartedAt && soundToStart[i] && (currentMillis > soundToStart[i])) {playSound(i);}
-    if (soundStartedAt && soundToStop[i] && (currentMillis > soundToStop[i])) {silenceSound(i);}
-    if (sequenceToStop && (currentMillis > sequenceToStop)) {stopSequence();}
   }
 
+  currentMillis = millis();
+  elapsed = currentMillis - soundStartedAt; //float so we get reasonable math below rather than integer math
+  remaining = soundStopsAt - currentMillis;
+
   //play sound, fading up or down as needed
-  uint16_t j;
-  if (soundStartedAt && elapsed < COSINE_PERIOD) { //in cosine gate at start, fade up
-    j = constrain((COS_TABLE_SIZE-1) * elapsed / COSINE_PERIOD, 0, COS_TABLE_SIZE-1);
-    potTap = potTap_min + (127-potTap_min) * pgm_read_word_near(cosTable + j) / COS_TABLE_AMPLITUDE;
+  static uint16_t j;
+  if (soundStartedAt && remaining == 0) { //min volume
+    potTap = 127;
+    Serial.print("off ");
     updatePots(potTap);
-  } if (soundStartedAt && soundStopsAt - currentMillis < COSINE_PERIOD) { //in cosine gate at end, fade down
+  } else if (soundStartedAt && remaining <= COSINE_PERIOD) { //in cosine gate at end, fade down
     j = constrain((COS_TABLE_SIZE-1) * remaining / COSINE_PERIOD, 0, COS_TABLE_SIZE-1);
     potTap = potTap_min + (127-potTap_min) * pgm_read_word_near(cosTable + j) / COS_TABLE_AMPLITUDE;
+    Serial.print("down ");
     updatePots(potTap);
+  } else if (soundStartedAt && elapsed <= COSINE_PERIOD) { //in cosine gate at start, fade up
+    j = constrain((COS_TABLE_SIZE-1) * elapsed / COSINE_PERIOD, 0, COS_TABLE_SIZE-1);
+    potTap = potTap_min + (127-potTap_min) * pgm_read_word_near(cosTable + j) / COS_TABLE_AMPLITUDE;
+    Serial.print("up ");
+    updatePots(potTap);
+  } else if (soundStartedAt && elapsed > COSINE_PERIOD && elapsed < remaining) { //full volume
+    potTap = potTap_min;
+    Serial.print("full ");
+    updatePots(potTap);
+  } 
+
+  for (unsigned int i=0; i < SOUND_COUNT; i++) {
+    //silence sound
+    if (soundStartedAt && soundToStop[i] && (currentMillis >= soundToStop[i])) {silenceSound(i);}
+    if (sequenceToStop && (currentMillis >= sequenceToStop)) {stopSequence();}
   }
   
 
