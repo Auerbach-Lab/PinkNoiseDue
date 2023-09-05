@@ -228,15 +228,15 @@ static void selectorHandler(uint8_t btnId, uint8_t btnState) {
       changeFreqHelper(btnId*1000); //btnId specifies frequency in kHz
     }
     if (waveShape == NOISE) {
-      changeVolumeHelper(volume_noise[7]);
+      changeVolumeHelper(volume_noise[0]);
     } else if (frequency == 4000) {
-      changeVolumeHelper(volume_tone4[7]);
+      changeVolumeHelper(volume_tone4[0]);
     } else if (frequency == 8000) {
-      changeVolumeHelper(volume_tone8[7]);
+      changeVolumeHelper(volume_tone8[0]);
     } else if (frequency == 16000) {
-      changeVolumeHelper(volume_tone16[7]);
+      changeVolumeHelper(volume_tone16[0]);
     } else if (frequency == 32000) {
-      changeVolumeHelper(volume_tone32[7]);
+      changeVolumeHelper(volume_tone32[0]);
     }
   }
 }
