@@ -244,9 +244,9 @@ int8_t DS1881::_read_registers() {
   if (nullptr != _bus) {
     if (3 == _bus->requestFrom(_ADDR, (uint8_t) 3)) {
       ret = 0;
-      registers[0] = 0x3F & _bus->receive();
-      registers[1] = 0x3F & _bus->receive();
-      registers[2] = 0x3F & _bus->receive();
+      registers[0] = 0x3F & _bus->read();
+      registers[1] = 0x3F & _bus->read();
+      registers[2] = 0x3F & _bus->read();
     }
 
     if (0x06 != (registers[2] & 0x07)) {
