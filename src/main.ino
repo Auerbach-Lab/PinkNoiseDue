@@ -11,7 +11,7 @@
 #define BOOKEND_DURATION     60000   // ms duration of silence at beginning and end, must be less than 1/2 RECORDING_DURATION
 #define GAP_DURATION         25000   // ms between sounds
 #define SOUND_DURATION        5000   // ms duration of sound to play
-#define COSINE_PERIOD          100   // ms duration of cosine gate function, must be less than or equal to 1/2 SOUND_DURATION
+#define COSINE_PERIOD           50   // ms duration of cosine gate function, must be less than or equal to 1/2 SOUND_DURATION
 #define SOUND_COUNT             18   // total number of samples to play
 
 // DO NOT EDIT 
@@ -136,7 +136,7 @@ static void silenceSound(int i) {
   Serial.println("Sound silenced"); 
   changeWaveHelper(SILENCE); 
   digitalWrite(TTL_OUTPUT_PIN, LOW);
-  digitalWrite(RELAY_PIN, LOW); 
+  digitalWrite(RELAY_PIN, LOW);
   soundStartedAt = 0; //clear the indication that sound is playing
   soundStopsAt = 0;
   soundToStop[i] = 0; //clear the assignment     
@@ -228,15 +228,15 @@ static void selectorHandler(uint8_t btnId, uint8_t btnState) {
       changeFreqHelper(btnId*1000); //btnId specifies frequency in kHz
     }
     if (waveShape == NOISE) {
-      changeVolumeHelper(volume_noise[0]);
+      changeVolumeHelper(volume_noise[7]);
     } else if (frequency == 4000) {
-      changeVolumeHelper(volume_tone4[0]);
+      changeVolumeHelper(volume_tone4[7]);
     } else if (frequency == 8000) {
-      changeVolumeHelper(volume_tone8[0]);
+      changeVolumeHelper(volume_tone8[7]);
     } else if (frequency == 16000) {
-      changeVolumeHelper(volume_tone16[0]);
+      changeVolumeHelper(volume_tone16[7]);
     } else if (frequency == 32000) {
-      changeVolumeHelper(volume_tone32[0]);
+      changeVolumeHelper(volume_tone32[7]);
     }
   }
 }
@@ -328,21 +328,21 @@ void loop() {
   static uint16_t j;
   if (soundStartedAt && remaining == 0) { //min volume
     potTap = 127;
-    Serial.print("off ");
+    //Serial.print("off ");
     updatePots(potTap);
   } else if (soundStartedAt && remaining <= COSINE_PERIOD) { //in cosine gate at end, fade down
     j = constrain((COS_TABLE_SIZE-1) * remaining / COSINE_PERIOD, 0, COS_TABLE_SIZE-1);
     potTap = potTap_min + (127-potTap_min) * pgm_read_word_near(cosTable + j) / COS_TABLE_AMPLITUDE;
-    Serial.print("down ");
+    //Serial.print("down ");
     updatePots(potTap);
   } else if (soundStartedAt && elapsed <= COSINE_PERIOD) { //in cosine gate at start, fade up
     j = constrain((COS_TABLE_SIZE-1) * elapsed / COSINE_PERIOD, 0, COS_TABLE_SIZE-1);
     potTap = potTap_min + (127-potTap_min) * pgm_read_word_near(cosTable + j) / COS_TABLE_AMPLITUDE;
-    Serial.print("up ");
+    //Serial.print("up ");
     updatePots(potTap);
   } else if (soundStartedAt && elapsed > COSINE_PERIOD && elapsed < remaining) { //full volume
     potTap = potTap_min;
-    Serial.print("full ");
+    //Serial.print("full ");
     updatePots(potTap);
   } 
 
