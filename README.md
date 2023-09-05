@@ -1,4 +1,4 @@
-# Tone & pink noise generator with synchronized TTL
+# Tone/noise generator with synchronized TTL
 
  - **Author:** Brian James, <brian@tofof.com>
  - **Date:** 2023-09-05
