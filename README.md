@@ -1,23 +1,27 @@
-# Pink Noise & TTL Generator
+# Tone/noise generator with synchronized TTL
 
  - **Author:** Brian James, <brian@tofof.com>
- - **Date:** 2023-07-02
- - **Version:** 0.1.0
+ - **Date:** 2023-09-05
+ - **Version:** 0.2.0
  - **Contact:** Ben Auerbach, Auerbach Lab, University of Illinois \<bda5@illinois.edu>
 
 
 ## Description
-This is an arduino-based pink noise generator that sends a TTL signal while audio is playing. It was constructed for use with the RWD R820 photometry system, but is compatible with any devices that accept TTL signals. The specific sequence and timing of signals can be adjusted in software. 
+This is an arduino-based sound generator that sends a TTL signal while audio is playing. It was constructed for use with the RWD R820 photometry system, but is compatible with any devices that accept TTL signals. The specific sequence and timing of signals can be adjusted in software. 
 
 ![A photograph of the control box and the speaker, showing the test, start, and abort buttons and the blue and green LEDs](https://github.com/Auerbach-Lab/PinkNoiseDue/blob/7478535de894f6554dea8b48933255e167ce98e0/docs/pink_noise_generator.jpg?raw=true)
 
 
 ## Usage
- 1. Connect the power supply to the jack on the rear face of the control box. 
- 2. Connect the speaker using a headphone cable to the jacks on the speaker housing and the forward face of the control box.
- 3. Connect a BNC cable (male-male) to the jack on the forward face of the control box and to an "Input" connection on the photometry system. 
- 4.  In the left pane of the RWD Photometry software ([manual](https://www.rwdstco.com/wp-content/uploads/2021/10/R820-Tricolor-Multichannel-Fiber-Photometry-System-User-Manual_A-0831-02.pdf)), scroll down to find the "Event/Output Setting" section. **Make sure that "Hardware" is checked** to enable the incoming TTL signal to annotate the recording. 
- 5. Start the recording in the photometry software and press the green START button on the control box to begin the pre-programmed 10 minute sequence. 
+ 1. Connect the BLUE-labelled power supply to the jack on the rear face of the control box.
+ 2. Connect the RED-labelled power supply to the jack on the rear face of the amplifier.
+ 3. Set the volume of the amplifier to the maximum (farthest clockwise) using the large knob.
+ 4. Connect the headphone jack on the control box to the RCA-in ports on the amplifier, using a 3.5mm-RCA cable.
+ 5. Connect the output of the amplifier to the headphone jack on the speakers, using a 3.5mm-Banana cable.
+ 6. Connect a BNC cable (male-male) to the jack on the forward face of the control box and to an "Input" connection on the photometry system. 
+ 7.  In the left pane of the RWD Photometry software ([manual](https://www.rwdstco.com/wp-content/uploads/2021/10/R820-Tricolor-Multichannel-Fiber-Photometry-System-User-Manual_A-0831-02.pdf)), scroll down to find the "Event/Output Setting" section. **Make sure that "Hardware" is checked** to enable the incoming TTL signal to annotate the recording.
+ 8. Turn the frequency selection knob on the control box to the desired setting.
+ 9. Start the recording in the photometry software and press the green START button on the control box to begin the pre-programmed 10 minute sequence. 
  
 **LED Indicators**<br>
 Green LED illuminates to indicate that the sequence is active. 
@@ -25,26 +29,28 @@ Blue LED illuminates when TTL is being transmitted, i.e. when a sound is playing
 
 **Button Details**<br>
 To test the device, press the black TEST button. The blue LED will activate, indicating sound is playing and a TTL signal is being sent. 
-- Verify the volume is acceptable using a meter or a smartphone (suggested app: DecibelX for [Android](https://play.google.com/store/apps/details?id=com.skypaw.decibel&hl=en_US&gl=US) or [iOS](https://apps.apple.com/us/app/decibel-x-db-sound-level-meter/id448155923)).
+- Verify the volume is acceptable using a meter or a smartphone (suggested app: DecibelX for [Android](https://play.google.com/store/apps/details?id=com.skypaw.decibel&hl=en_US&gl=US) or [iOS](https://apps.apple.com/us/app/decibel-x-db-sound-level-meter/id448155923)). Volume should be 90 dB at approximately 0.5m distance.
 - Verify that the TTL signal is being received by starting a recording in the RWD Photometry software and watching the color highlight appear during the recording while TEST is depressed.
 
 Pressing START while a sequence is already running has no effect.
 
+Changing the frequency selection knob while a sequence is running will immediately abort the current sequence; you will have to press START again to begin another sequence.
+
 Press the red ABORT button to cancel a running sequence and immediately silence any sounds.
 
 **Volume**<br>
-To adjust the volume in software, edit `#define VOLUME 200` near the top of main.ino. See the rough decibel correspondence in the chart immediately following this line.
-
-To adjust the volume in hardware, use the trim potentiometer on the underside of the control box, using a flat eyeglasses screwdriver or similar implement. There is a very small usable range for adjustments; as little as 2 degrees of turn will produce several dB of change within this range. Most positions the trimmer can be set to leave the speaker at maximum volume. **Use this adjustment sparingly**; trim pots are generally only rated for a 200 cycle lifespan.
-
-![A photograph of the underside of the control box, showing the cutout to access the volume trim potentiometer](https://github.com/Auerbach-Lab/PinkNoiseDue/blob/7478535de894f6554dea8b48933255e167ce98e0/docs/control_box_underside.jpg?raw=true)
-
+To adjust the volume in software, edit values in the `VOLUME CALIBRATION` section near the top of main.ino. 
 
 ## Sound Sequence
- - 120 seconds of silence
- - 355 seconds of 5-second bursts of pink noise that are cosine gated in and out across 500 ms, then 30 seconds of silence (11 bursts, 10 silent periods)
- - 120 seconds of silence
- Total duration: 9 minutes 55 seconds
+ - 60 seconds of silence
+ - 5-second sounds that are cosine gated in and out across 500 ms, then 25 seconds of silence (18 sounds and 17 silent periods, for 515 seconds)
+ - 60 seconds of silence
+ Total duration: 10 minutes 35 seconds
+
+The sounds are played in the following order of intensities (dB):
+> 40, 80, 20, 70, 60, 30, 90, 10, 50, 20, 60, 10, 30, 90, 70, 40, 50, 80
+
+Note that each intensity is played twice, with intensities of 10-90 dB.
 
 ## Sound Spectral Quality
 Real world results show spectrally-accurate pink noise in the range of 6.5-25 kHz, and possibly beyond (smartphone app does not support measurements in frequencies above 25 kHz). Between 3-6.5 kHz intensity is mostly uniform, i.e. white noise. Intensity falls off below 3 kHz to levels undistinguishable from ambient at 750 Hz. 
@@ -60,11 +66,24 @@ Repository: https://github.com/Auerbach-Lab/PinkNoiseDue
  3. Edit `main.ino`, located in the `src` directory. Near the top of that file:
 ```
 // EDIT THESE VALUES to adjust timings on sequence
-#define RECORDING_DURATION  600000   // ms duration of entire recording sequence, must be at least BOOKEND_DURATION * 2 + SOUND_DURATION for a single sound
-#define BOOKEND_DURATION    120000   // ms duration of silence at beginning and end, must be less than 1/2 RECORDING_DURATION
-#define GAP_DURATION         30000   // ms between sounds
+BOOKEND_DURATION * 2 + SOUND_DURATION for a single sound
+#define BOOKEND_DURATION     60000   // ms duration of silence at beginning and end, must be less than 1/2 RECORDING_DURATION
+#define GAP_DURATION         25000   // ms between sounds
 #define SOUND_DURATION        5000   // ms duration of sound to play
 #define COSINE_PERIOD          500   // ms duration of cosine gate function, must be less than or equal to 1/2 SOUND_DURATION
+#define SOUND_COUNT             18   // total number of samples to play
+
+// VOLUME CALIBRATION
+// These are given as amplitude ratios of the waveform, i.e. direct control on arduino
+// In theory, each -10 dB is a multiplier of 0.316227766 to amplitude
+// Range of usable coefficients is 1,000,000 to 489 (for minimum amplitude of 489/1,000,000 = 2/4096 for 12 bit DAC)
+// Coefficients for noise are up through 65535 and lowest three are sentinel values for altering volume with potentiometers
+const uint32_t volume_noise[9]  = {65535,23000,7300,2300,730,200,199,198,197};
+const uint32_t volume_tone4[9]  = {460000,145000,46000,14500,5200,1900,800,505,491};
+const uint32_t volume_tone8[9]  = {320000,100000,32000,10250,3500,1400,580,495,489};
+const uint32_t volume_tone16[9] = {700000,225000,75000,23000,8500,2800,1200,525,492};
+const uint32_t volume_tone32[9] = {1000000,316228,100000,31623,10000,3500,1500,580,502};
+const uint8_t  r[SOUND_COUNT] = {5,1,7,2,3,6,0,8,4,7,3,8,6,0,2,5,4,1}; //fixed random order to play the volumes in
 ```
 4. Connect a short micro-usb cable to the programming port of the arduino, accessible through a cutout in the control box. 
 5. Build and upload the sketch to the arduino using the buttons in the PlatformIO toolbar at the bottom of the editor. 
@@ -73,11 +92,15 @@ Repository: https://github.com/Auerbach-Lab/PinkNoiseDue
 ## Parts
 **Speaker** - Fostex FT17H tweeter, with a rated frequency response of 5-40 kHz. Produces audio down to 500 Hz , but with diminished intensity outside its rated range. As a result, the peak intensity of the pink noise is at 3 kHz; frequencies between 0.5-3 kHz have diminished intensity from true pink noise. The speaker housing includes as 1/4"-20 threaded nut allowing it to be mounted to microphone/camera booms.
 
-**Control box** - The control box consists of an Arduino Due, an TPA3116D2 amplifier circuit, and a relay. The arduino may be reprogrammed using either of the micro-usb ports. Although the arduino can be powered through these ports alone during testing, the amplifier will be unpowered so there will be no audio output. The control box also incorporates circuitry to protect the vulnerable and precious DAC output pin from static electricity or other inrush current, including a replaceable fuse.
+**Control box** - The control box consists of an Arduino Due, a DS1881 digital potentiometer, and a relay. The arduino may be reprogrammed using either of the micro-usb ports. The control box also incorporates circuitry to protect the vulnerable and precious DAC output pin from static electricity or other inrush current, including a fuse.
 
-**Power supply** - 12VDC 2A, 5.5x2.1mm (short) plug. Higher amperage power supplies are also suitable. The short (8-9mm) variant of this size plug is uncommon; the more common length (10-11mm) may be used but will not fully insert. This would not be a safety hazard; the exposed portion of plug is ground.
+**Amplifier** - Fosi Audio V3 Stereo Amplifier, based on a TPA3255 chipset. 
 
-**Headphone cable** - male-male mono or stereo 3.5mm minijack cable.
+**Power supplies** - For the arduino: 12VDC 2A, 5.5x2.1mm (short) plug. Higher amperage power supplies are also suitable. The short (8-9mm) variant of this size plug is uncommon; the more common length (10-11mm) may be used but will not fully insert. This would not be a safety hazard; the exposed portion of plug is ground. For the amplifier: 32VDC 5A, also in 5.5x2.1 plug. **Do not confuse the two power supplies or you will destroy the arduino control box.**
+
+**3.5mm-RCA cable** - male-male mono or stereo adapter cable, converting between 3.5mm minijack and RCA, used between the control box and the amplifier.
+
+**3.5mm-Banana plug cable** - male-male mono or stereo adapter cable, converting between 3.5mm minijack and banana plugs (or bare terminals). Used between the speaker and the amplifier. If bare terminals are used, they can be screwed into place on the amplifier instead of plugged into the center socket of the outputs.
 
 **BNC cable** - A 50Ω male-male cable is provided, matching the impedance on the control box and the RWD R820 sockets. This is by far the more common type of BNC cable, but in practice a 75Ω cable would also work perfectly in this application (and presents no hazard to either device). 
 
@@ -86,19 +109,13 @@ Repository: https://github.com/Auerbach-Lab/PinkNoiseDue
 
 ## Troubleshooting
 If the blue LED illuminates but no sound can be heard from the speaker:
- - Make sure the audio cable is firmly connected to both the speaker housing and the control box. 
- - Turn the volume trim pot on the underside of the control box fully clockwise, to its maximum position.
- - Ensure that external DC power is plugged into the control box, and that the box is not being supplied from the micro-usb port which only supplies the arduino (not the amplifier). 
- - If the programming has been edited, re-upload the program to the arduino, after verifying that the `VOLUME` #define has not been set too low (200 is the original default). 
- - Finally, open the control box and inspect the fuse (50 mA / 0.05 A, 5x20 mm), replacing it if necessary. The fuse is located on the vertical breadboard attached to the lid of the enclosure.
+ - Make sure the control box and amplifier are both plugged in, and that the amplifier's volume knob is set to maximum, and the blue power led on the amplifier is on.
+ - Make sure the audio cables are firmly connected between the control box and amplifier, and between the amplifier and speaker. The RCA connection is the most likely to work itself loose.
+ - Finally, open the control box to inspect the fuse (50 mA / 0.05 A, 5x20 mm), replacing it if necessary. **BE VERY CAREFUL OF STATIC DISCHARGE** while doing this - handling the fuse can send static electricity into the DAC and destroy it. It is best to first disconnect the DAC output pin completely as a precaution. The fuse is located on a small breakout PCB and is hardwired into place for reliability.
 
 
 ## Notes for Future Maintainers
-The relay is used to completely silence the amplifier output, to eliminate background hiss. There is some amount of hiss (white noise) during audio playback, but it is indistinguishable beneath the much louder pink noise and does not measurably impact the intensity/frequency relationship of the pink noise output. If the box is converted to playing tones, expect 25 dB of background white noise beneath the tone. 
-
-Output from the DAC on the Due is DC-biased by half the operating voltage (i.e. by 2.5 V). To remedy this, the signal is passed through a coupling capacitor so that only the AC portion passes through. The signal is still slightly DC-biased, but only by about 0.2 V. It is unknown whether a differently sized capacitor would completely eliminate the bias.
-
-The capacitor size also attenuates low-frequency signal, which could be a contributing factor to the peak intensity of the current system being at 3 kHz. It is possible that the 22nF capacitor in use should be replaced with a 1uF or even 10uF cap to permit 1000 Hz or 100 Hz signals ([guide](https://www.learningaboutelectronics.com/Articles/What-is-a-coupling-capacitor)). 
+The relay is present to completely disconnect the audio output, to eliminate background hiss. It is ancillary after the introduction of the DS1881, which provides a mute feature with zero-crossing detection to enable a similar hard disconnect without risk of a transient (pop or click) in the audio output.
 
 No lowpass filtering capacitor is used directly on the speaker, despite it being a tweeter. Experiments with adding a lowpass filtering capacitor resulted in diminished volume from the speaker. The FT17H is an 8Ω speaker, suggesting a 25-50uF capacitor would be appropriate ([guide](https://how-to-install-car-audio-systems.blogspot.com/2016/03/how-to-add-capacitor-to-car-tweeter.html)) if this is to be pursued in the future.
 
