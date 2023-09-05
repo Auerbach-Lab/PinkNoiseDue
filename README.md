@@ -9,7 +9,7 @@
 ## Description
 This is an arduino-based sound generator that sends a TTL signal while audio is playing. It was constructed for use with the RWD R820 photometry system, but is compatible with any devices that accept TTL signals. The specific sequence and timing of signals can be adjusted in software. 
 
-![A photograph of the control box and the speaker, showing the test, start, and abort buttons and the blue and green LEDs](https://github.com/Auerbach-Lab/PinkNoiseDue/blob/7478535de894f6554dea8b48933255e167ce98e0/docs/pink_noise_generator.jpg?raw=true)
+![A photograph of the control box and the speaker, showing the test, start, and abort buttons and the blue and green LEDs](https://github.com/Auerbach-Lab/PinkNoiseDue/blob/3dfdd038347436ca910bea0f4c5e393d52d1ded2/docs/pink_noise_generator.jpg?raw=true)
 
 
 ## Usage
