@@ -3,7 +3,14 @@
 #include "costable.h"
 #include "DueArbitraryWaveformGeneratorV2.h"
 #include <Wire.h>
-#include <Adafruit_DS1841.h>
+
+#include <DS1881.h>
+#if defined(DS1881_DEBUG)
+  // If debugging is enabled in the build, another dependency will be needed.
+  // It can be disabled in the driver's header file.
+  // https://github.com/jspark311/CppPotpourri
+  #include <StringBuilder.h>
+#endif  // DS1881_DEBUG
 
 // EDIT THESE VALUES to adjust timings on sequence
 // define either recording_duration OR sound_count here, and calculate the other below
@@ -73,16 +80,15 @@ int32_t frequency = 0;
 uint32_t volume = 0;
 
 extern TwoWire Wire1; // use SCL1 & SDA1 for I2c to potentiometers
-Adafruit_DS1841 ds0; //logarithmic potentiometer DS1841
-Adafruit_DS1841 ds1; 
+DS1881 ds1881(DS1881_BASE_I2C_ADDR);
 int8_t potTap = 0; //controls output of potentiometers, 0-127
 int8_t potTap_old = -1;
 int8_t potTap_min = 0;
 
 void updatePots(uint8_t tap) {
   if (tap != potTap_old) {
-    ds0.setWiper(tap);
-    ds1.setWiper(tap);
+    //ds0.setWiper(tap);
+    //ds1.setWiper(tap);
     potTap_old = tap;
     Serial.print("fade "); Serial.print(tap); Serial.println("");
   } 
@@ -139,6 +145,7 @@ static void silenceSound(int i) {
   changeWaveHelper(SILENCE); 
   digitalWrite(TTL_OUTPUT_PIN, LOW);
   if (USING_RELAY) digitalWrite(RELAY_PIN, LOW);
+  NoiseAmp = 0;
   soundStartedAt = 0; //clear the indication that sound is playing
   soundStopsAt = 0;
   soundToStop[i] = 0; //clear the assignment     
@@ -267,6 +274,118 @@ static void pollButtons() {
   tone32Button.update(digitalRead(TONE32_PIN));
 }
 
+void printHelp() {
+  Serial.print("\nDS1881E Example ");
+  Serial.print("\n---< Meta >-------------------------\n");
+  Serial.print("?     This output\n");
+  #if defined(DS1881_DEBUG)
+  Serial.print("i     DS1881E info\n");
+  #endif
+
+  Serial.print("\n---< Channel Manipulation >-----------\n");
+  Serial.print("[/]   Volume up/down for channel 0\n");
+  Serial.print("{/}   Volume up/down for channel 1\n");
+  Serial.print("+/-   Volume up/down for both channels at once\n");
+  Serial.print("x     Refresh register shadows\n");
+  Serial.print("I     Reinitialize\n");
+  Serial.print("#     Store wiper settings in NV\n");
+  Serial.print("S     Serialize\n");
+  Serial.print("R/r   Set range to 63/33\n");
+  Serial.print("E/e   (En/Dis)able channel (mute)/\n");
+  Serial.print("Z/z   (En/Dis)able zerocross detection\n");
+}
+
+void loop_ds1881_ex() {
+  DIGITALPOT_ERROR ret = DIGITALPOT_ERROR::NO_ERROR;
+  if (Serial.available()) {
+    char c = Serial.read();
+    switch (c) {
+      case '[':
+      case ']':
+        ret = ds1881.setValue(0, ds1881.getValue(0) + (('[' == c) ? 1 : -1));
+        Serial.print("setValue() returns ");
+        Serial.println(DS1881::errorToStr(ret));
+        break;
+      case '{':
+      case '}':
+        ret = ds1881.setValue(1, ds1881.getValue(1) + (('{' == c) ? 1 : -1));
+        Serial.print("setValue() returns ");
+        Serial.println(DS1881::errorToStr(ret));
+        break;
+      case '-':
+      case '+':
+        ret = ds1881.setValue(ds1881.getValue(0) + (('-' == c) ? 1 : -1));
+        Serial.print("setValue() returns ");
+        Serial.println(DS1881::errorToStr(ret));
+        break;
+      case 'Z':
+      case 'z':
+        ret = ds1881.zerocrossWait('Z' == c);
+        Serial.print("zerocrossWait() returns ");
+        Serial.println(DS1881::errorToStr(ret));
+        break;
+      case 'E':
+      case 'e':
+        ret = ds1881.enable('E' == c);
+        Serial.print("enable() returns ");
+        Serial.println(DS1881::errorToStr(ret));
+        break;
+      case '#':
+        ret = ds1881.storeWipers();
+        Serial.print("storeWipers() returns ");
+        Serial.println(DS1881::errorToStr(ret));
+        break;
+      case 'R':
+      case 'r':
+        ret = ds1881.setRange(('R' == c) ? 63 : 33);
+        Serial.print("setRange() returns ");
+        Serial.println(DS1881::errorToStr(ret));
+        break;
+      case 'I':
+        ret = ds1881.init();
+        Serial.print("init() returns ");
+        Serial.println(DS1881::errorToStr(ret));
+        break;
+      case 'x':
+        ret = ds1881.refresh();
+        Serial.print("refresh() returns ");
+        Serial.println(DS1881::errorToStr(ret));
+        break;
+      case 'S':   // Save the state into a buffer for later reconstitution.
+        {
+          uint8_t buffer[DS1881_SERIALIZE_SIZE];
+          uint8_t written = ds1881.serialize(buffer, DS1881_SERIALIZE_SIZE);
+          if (DS1881_SERIALIZE_SIZE == written) {
+            for (uint8_t i = 0; i < DS1881_SERIALIZE_SIZE; i++) {
+              Serial.print((buffer[i] > 0x0F) ? "0x" : "0x0");
+              Serial.print(buffer[i], HEX);
+              Serial.print(((i+1) % 12) ? " " : "\n");
+            }
+            Serial.println();
+          }
+          else {
+            Serial.print("serialize() returns ");
+            Serial.print(written);
+            Serial.print(". Was expecting ");
+            Serial.println(DS1881_SERIALIZE_SIZE);
+          }
+        }
+        break;
+
+      case '?':  printHelp();           break;
+      #if defined(DS1881_DEBUG)
+      case 'i':
+        {
+          StringBuilder output;
+          ds1881.printDebug(&output);
+          Serial.print((char*) output.string());
+        }
+        break;
+      #endif
+    }
+  }
+}
+
 void setup() { 
   Serial.begin(115200);
   analogReadResolution(12);
@@ -287,30 +406,23 @@ void setup() {
   // Try to initialize!
   Wire1.begin();        // join i2c bus
   delay(10);
-  while (!ds0.begin(0x28, &Wire1)) {
-    Serial.println("Failed to find DS1841 chip at 0x28");
-    Wire1.begin(); 
-    delay(100);
-  }
-  while (!ds1.begin(0x2A, &Wire1)) {
-    Serial.println("Failed to find DS1841 chip at 0x2A");
+  while (ds1881.init(&Wire1) != DIGITALPOT_ERROR::NO_ERROR) {
+    Serial.println("Failed to find DS1881 chip at 0x28"); //0x28 = DS1881_BASE_I2C_ADDR
     Wire1.begin(); 
     delay(100);
   }
   
   digitalWrite(RELAY_PIN, !USING_RELAY); //write low (mute) if using, otherwise write high
-  potTap = 127; // quiet (max resistance) | 0 is loud (min resistance)
-  updatePots(potTap);
+  NoiseAmp = 0;
+  //potTap = 127; // quiet (max resistance) | 0 is loud (min resistance)
+  //updatePots(potTap);
   Setup_DAWG(); //Due Arbitrary Waveform Generator - not my acronym haha  
   if (ExactFreqMode) ToggleExactFreqMode(); //we DON'T want to be in exact mode, which has nasty harmonics at 32khz
-  NoiseAmp = 0;
 }
 
 void loop() { 
   pollButtons();
   currentMillis = millis();
-  static unsigned long elapsed;
-  static unsigned long remaining;
   
   for (unsigned int i=0; i < SOUND_COUNT; i++) {
     //specify volume for next sound shortly (1s) before it plays
@@ -322,11 +434,11 @@ void loop() {
   }
 
   currentMillis = millis();
-  elapsed = currentMillis - soundStartedAt; //float so we get reasonable math below rather than integer math
-  remaining = soundStopsAt - currentMillis;
+  unsigned long elapsed = currentMillis - soundStartedAt;
+  unsigned long remaining = soundStopsAt - currentMillis;
 
-  //play sound, fading up or down as needed
-  static uint16_t j;
+  //fade up or down as needed
+  uint16_t j;
   if (soundStartedAt && remaining == 0) { //min volume
     potTap = 127;
     //Serial.print("off ");
@@ -353,8 +465,12 @@ void loop() {
     if (sequenceToStop && (currentMillis >= sequenceToStop)) {stopSequence();}
   }
   
-
-  Loop_DAWG(); //Due Arbitrary Waveform Generator - not my acronym haha
+  loop_ds1881_ex();
+  //Loop_DAWG(); //Due Arbitrary Waveform Generator - not my acronym haha
   //Serial.print(foo); Serial.print("   "); Serial.print(bar); Serial.print("   "); Serial.print(baz);Serial.println("");
-  delay(0); //sound production itself is interrupt-driven, so this just spends less time in the keypad processing and fading volumes
+  delay(1); //sound production itself is interrupt-driven, so this just spends less time in the keypad processing and fading volumes
 }
+
+// can feed back dac through ds1881 to a5/a6/a7 which are free to read new value for tests
+// if we do this use a breadboard and a 1000 ohm resistor on the dac, maybe a 3.3v zener also
+// with a 220 ohm and the 50 mA fuse this is the protection circuit we had before, might as well?
