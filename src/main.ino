@@ -11,7 +11,7 @@
 #define BOOKEND_DURATION     60000   // ms duration of silence at beginning and end, must be less than 1/2 RECORDING_DURATION
 #define GAP_DURATION         25000   // ms between sounds
 #define SOUND_DURATION        5000   // ms duration of sound to play
-#define COSINE_PERIOD            1   // ms duration of cosine gate function, must be less than or equal to 1/2 SOUND_DURATION
+#define COSINE_PERIOD          500   // ms duration of cosine gate function, must be less than or equal to 1/2 SOUND_DURATION
 #define SOUND_COUNT             18   // total number of samples to play
 
 // DO NOT EDIT 
@@ -57,6 +57,8 @@ const uint8_t  r[SOUND_COUNT] = {5,1,7,2,3,6,0,8,4,7,3,8,6,0,2,5,4,1}; //fixed r
 #define SINUSOIDAL '0'
 #define SILENCE '2'
 #define NOISE '4'
+
+#define USING_RELAY 0
 
 uint32_t soundAmplitude[SOUND_COUNT] = {0};
 unsigned long soundToStart[SOUND_COUNT] = {0};
@@ -124,9 +126,9 @@ void changeVolumeHelper(uint32_t amplitude) {
 
 static void playSound(int i) {
   Serial.println("Sound playing");
-  digitalWrite(RELAY_PIN, HIGH);
   digitalWrite(TTL_OUTPUT_PIN, HIGH);
   changeWaveHelper(waveShape);
+  if (USING_RELAY) digitalWrite(RELAY_PIN, HIGH);
   soundStartedAt = millis(); //schedule, for cosine fade
   soundStopsAt = soundToStop[i];
   soundToStart[i] = 0; //clear the assignment
@@ -136,7 +138,7 @@ static void silenceSound(int i) {
   Serial.println("Sound silenced"); 
   changeWaveHelper(SILENCE); 
   digitalWrite(TTL_OUTPUT_PIN, LOW);
-  digitalWrite(RELAY_PIN, LOW);
+  if (USING_RELAY) digitalWrite(RELAY_PIN, LOW);
   soundStartedAt = 0; //clear the indication that sound is playing
   soundStopsAt = 0;
   soundToStop[i] = 0; //clear the assignment     
@@ -296,8 +298,7 @@ void setup() {
     delay(100);
   }
   
-  //digitalWrite(RELAY_PIN, HIGH);
-  digitalWrite(RELAY_PIN, LOW);
+  digitalWrite(RELAY_PIN, !USING_RELAY); //write low (mute) if using, otherwise write high
   potTap = 127; // quiet (max resistance) | 0 is loud (min resistance)
   updatePots(potTap);
   Setup_DAWG(); //Due Arbitrary Waveform Generator - not my acronym haha  
