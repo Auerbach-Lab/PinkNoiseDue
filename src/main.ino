@@ -293,13 +293,20 @@ void printHelp() {
   Serial.print("R/r   Set range to 63/33\n");
   Serial.print("E/e   (En/Dis)able channel (mute)/\n");
   Serial.print("Z/z   (En/Dis)able zerocross detection\n");
+  Serial.print("q     Query feedback\n");
 }
 
 void loop_ds1881_ex() {
+  float voltage = analogRead(A6);
   DIGITALPOT_ERROR ret = DIGITALPOT_ERROR::NO_ERROR;
   if (Serial.available()) {
     char c = Serial.read();
     switch (c) {
+      case 'q':
+        voltage *= 3.3; //vdd
+        voltage /= 4096; //12-bit
+        Serial.println(voltage);
+        break;
       case '[':
       case ']':
         ret = ds1881.setValue(0, ds1881.getValue(0) + (('[' == c) ? 1 : -1));
@@ -403,6 +410,10 @@ void setup() {
   pinMode(TONE16_PIN, INPUT_PULLUP);
   pinMode(TONE32_PIN, INPUT_PULLUP);
   
+  pinMode(A6, INPUT);
+  pinMode(52, OUTPUT);
+  digitalWrite(52, HIGH);
+  
   // Try to initialize!
   Wire1.begin();        // join i2c bus
   delay(10);
@@ -416,13 +427,34 @@ void setup() {
   NoiseAmp = 0;
   //potTap = 127; // quiet (max resistance) | 0 is loud (min resistance)
   //updatePots(potTap);
+
+  ds1881.enable(true);
+  potTap = 0;
+  ds1881.setValue(potTap);
+
   Setup_DAWG(); //Due Arbitrary Waveform Generator - not my acronym haha  
   if (ExactFreqMode) ToggleExactFreqMode(); //we DON'T want to be in exact mode, which has nasty harmonics at 32khz
 }
 
+int8_t increment = 1;
+
 void loop() { 
   pollButtons();
   currentMillis = millis();
+
+  int voltage = analogRead(A6);
+  //voltage *= 3.3; //vdd
+  //voltage /= 4096; //12-bit
+
+  Serial.print("PotTap: ");
+  Serial.print(potTap);
+  Serial.print("     Voltage: ");
+  Serial.print(voltage);
+  Serial.println("");
+
+  potTap += increment;
+  if (potTap == 0 || potTap == 63) increment *= -1;
+  ds1881.setValue(potTap);
   
   for (unsigned int i=0; i < SOUND_COUNT; i++) {
     //specify volume for next sound shortly (1s) before it plays
@@ -468,7 +500,7 @@ void loop() {
   loop_ds1881_ex();
   //Loop_DAWG(); //Due Arbitrary Waveform Generator - not my acronym haha
   //Serial.print(foo); Serial.print("   "); Serial.print(bar); Serial.print("   "); Serial.print(baz);Serial.println("");
-  delay(1); //sound production itself is interrupt-driven, so this just spends less time in the keypad processing and fading volumes
+  delay(100); //sound production itself is interrupt-driven, so this just spends less time in the keypad processing and fading volumes
 }
 
 // can feed back dac through ds1881 to a5/a6/a7 which are free to read new value for tests
