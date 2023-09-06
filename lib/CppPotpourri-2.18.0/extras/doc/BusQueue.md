@@ -1,7 +1,0 @@
-# BusQueue
-
-
-## Usage example
-
-
-#### Dependencies

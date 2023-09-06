@@ -1,7 +1,0 @@
-# ParsingConsole
-
-
-## Usage example
-
-
-#### Dependencies

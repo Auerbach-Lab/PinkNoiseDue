@@ -25,7 +25,7 @@ limitations under the License.
 
 // If debugging is enabled in the build, another dependency will be needed.
 // https://github.com/jspark311/CppPotpourri
-#define DS1881_DEBUG 1
+//#define DS1881_DEBUG 1
 
 #include <inttypes.h>
 #include <stdlib.h>

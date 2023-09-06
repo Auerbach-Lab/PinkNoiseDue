@@ -1,7 +1,0 @@
-# GPSWrapper
-
-
-## Usage example
-
-
-#### Dependencies
