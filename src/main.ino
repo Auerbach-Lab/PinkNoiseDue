@@ -74,6 +74,7 @@ unsigned long soundStartedAt = 0; //active playing sound, for convenience
 unsigned long soundStopsAt = 0; //active playing sound, for convenience
 unsigned long currentMillis = 0;
 unsigned long sequenceToStop = 0;
+unsigned long lastUpdate = 0;
 
 char waveShape = SILENCE; // changing this here has no effect on startup value, startup is controlled by the DAWG library
 int32_t frequency = 0;
@@ -89,6 +90,7 @@ void updatePots(uint8_t tap) {
   if (tap != potTap_old) {
     //ds0.setWiper(tap);
     //ds1.setWiper(tap);
+    ds1881.setValue(1, tap);
     potTap_old = tap;
     Serial.print("fade "); Serial.print(tap); Serial.println("");
   } 
@@ -115,6 +117,7 @@ void changeVolumeHelper(uint32_t amplitude) {
   if (waveShape == SINUSOIDAL) {
     SinAmp = amplitude/1000000.0; //sinamp is a float
     CreateWaveFull(0); //the 0 specifies waveshape 0, sinusoidal
+    //analogWrite(DAC1, (uint32_t) 2048*SinAmp);
   } else {
     NoiseAmp = (uint16_t) amplitude; //noiseamp is a uint32_t
     //noiseamp takes effect immediately, no need to rebuild wave
@@ -247,6 +250,8 @@ static void selectorHandler(uint8_t btnId, uint8_t btnState) {
     } else if (frequency == 32000) {
       changeVolumeHelper(volume_tone32[0]);
     }
+
+    changeWaveHelper(waveShape);
   }
 }
 
@@ -411,8 +416,6 @@ void setup() {
   pinMode(TONE32_PIN, INPUT_PULLUP);
   
   pinMode(A6, INPUT);
-  pinMode(52, OUTPUT);
-  digitalWrite(52, HIGH);
   
   // Try to initialize!
   Wire1.begin();        // join i2c bus
@@ -431,12 +434,15 @@ void setup() {
   ds1881.enable(true);
   potTap = 0;
   ds1881.setValue(potTap);
+  ds1881.zerocrossWait(false);
+  ds1881.zerocrossWait(true);
 
   Setup_DAWG(); //Due Arbitrary Waveform Generator - not my acronym haha  
   if (ExactFreqMode) ToggleExactFreqMode(); //we DON'T want to be in exact mode, which has nasty harmonics at 32khz
 }
 
 int8_t increment = 1;
+
 
 void loop() { 
   pollButtons();
@@ -446,15 +452,27 @@ void loop() {
   //voltage *= 3.3; //vdd
   //voltage /= 4096; //12-bit
 
-  Serial.print("PotTap: ");
-  Serial.print(potTap);
-  Serial.print("     Voltage: ");
-  Serial.print(voltage);
-  Serial.println("");
+  // Serial.print("PotTap: ");
+  // Serial.print(potTap);
+  // Serial.print("     Reading: ");
+  // Serial.print(ds1881.getValue(1));
+  // Serial.print("     Voltage: ");
+  // Serial.print(voltage);
+  // Serial.println("");
 
-  potTap += increment;
-  if (potTap == 0 || potTap == 63) increment *= -1;
-  ds1881.setValue(potTap);
+  // unsigned long in = currentMillis - lastUpdate;
+  // unsigned long left = lastUpdate + COSINE_PERIOD*2 - currentMillis;
+  // uint16_t k;
+  // if (left <= COSINE_PERIOD) {
+  //   k = constrain((COS_TABLE_SIZE-1) * left / COSINE_PERIOD, 0, COS_TABLE_SIZE-1);
+  //   potTap = pgm_read_word_near(potTable + k);
+  //   updatePots(potTap);
+  // } else if (in <= COSINE_PERIOD) {
+  //   k = constrain((COS_TABLE_SIZE-1) * in / COSINE_PERIOD, 0, COS_TABLE_SIZE-1);
+  //   potTap = pgm_read_word_near(potTable + k);
+  //   updatePots(potTap);
+  // }
+  // if (left == 0 || in > 2*COSINE_PERIOD) lastUpdate = currentMillis;
   
   for (unsigned int i=0; i < SOUND_COUNT; i++) {
     //specify volume for next sound shortly (1s) before it plays
@@ -497,10 +515,10 @@ void loop() {
     if (sequenceToStop && (currentMillis >= sequenceToStop)) {stopSequence();}
   }
   
-  loop_ds1881_ex();
-  //Loop_DAWG(); //Due Arbitrary Waveform Generator - not my acronym haha
+  //loop_ds1881_ex();
+  Loop_DAWG(); //Due Arbitrary Waveform Generator - not my acronym haha
   //Serial.print(foo); Serial.print("   "); Serial.print(bar); Serial.print("   "); Serial.print(baz);Serial.println("");
-  delay(100); //sound production itself is interrupt-driven, so this just spends less time in the keypad processing and fading volumes
+  delay(1); //sound production itself is interrupt-driven, so this just spends less time in the keypad processing and fading volumes
 }
 
 // can feed back dac through ds1881 to a5/a6/a7 which are free to read new value for tests

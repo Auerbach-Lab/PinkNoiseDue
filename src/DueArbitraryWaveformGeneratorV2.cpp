@@ -2190,7 +2190,7 @@ void Loop_DAWG()
                   Serial.println(  "   Type:   S   to enter the frequency Sweep mode - follow on-screen instructions.");
                   Serial.println(  "   Type:   T   to enter the Timer mode - follow on-screen instructions.");
                   Serial.println(  "   Type:   P   once to enable switches only, or twice for Pots. 3 times enables both.");
-                  Serial.println(  "   Type:  xt   to set volume potentiometers, where x is an integer (0 loud - 127 quiet)");
+                  Serial.println(  "   Type:  xt   to set volume pot, where x is -dB (0=full volume, 30=-30dB, 63=-80dB)");
                   Serial.println(  "   Type:   f   to toggle between pot controlling Freq of wave, or period of wave.");
                   Serial.println(  "   Type:   p   to toggle between pot controlling duty-cycle Percent, or Pulse width of wave.");
                   Serial.println(  "   Type:   r   to cycle through the Range of the frequency/period pot: x1, x10, x100, x1000 & x10000.");
