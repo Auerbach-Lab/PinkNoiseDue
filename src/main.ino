@@ -3,7 +3,6 @@
 #include "costable.h"
 #include "DueArbitraryWaveformGeneratorV2.h"
 #include <Wire.h>
-
 #include <DS1881.h>
 #if defined(DS1881_DEBUG)
   // If debugging is enabled in the build, another dependency will be needed.
@@ -18,7 +17,7 @@
 #define BOOKEND_DURATION     60000   // ms duration of silence at beginning and end, must be less than 1/2 RECORDING_DURATION
 #define GAP_DURATION         25000   // ms between sounds
 #define SOUND_DURATION        5000   // ms duration of sound to play
-#define COSINE_PERIOD          500   // ms duration of cosine gate function, must be less than or equal to 1/2 SOUND_DURATION
+#define COSINE_PERIOD            1   // ms duration of cosine gate function, must be less than or equal to 1/2 SOUND_DURATION
 #define SOUND_COUNT             18   // total number of samples to play
 
 // DO NOT EDIT 
@@ -74,7 +73,6 @@ unsigned long soundStartedAt = 0; //active playing sound, for convenience
 unsigned long soundStopsAt = 0; //active playing sound, for convenience
 unsigned long currentMillis = 0;
 unsigned long sequenceToStop = 0;
-unsigned long lastUpdate = 0;
 
 char waveShape = SILENCE; // changing this here has no effect on startup value, startup is controlled by the DAWG library
 int32_t frequency = 0;
@@ -88,11 +86,9 @@ int8_t potTap_min = 0;
 
 void updatePots(uint8_t tap) {
   if (tap != potTap_old) {
-    //ds0.setWiper(tap);
-    //ds1.setWiper(tap);
     ds1881.setValue(1, tap);
     potTap_old = tap;
-    Serial.print("fade "); Serial.print(tap); Serial.println("");
+    //Serial.print("fade "); Serial.print(tap); Serial.println("");
   } 
 }
 
@@ -124,10 +120,10 @@ void changeVolumeHelper(uint32_t amplitude) {
 
     //hacky fix for getting the lowest volumes from noise: use the potentiometers
     //lowest three volumes are amplitudes of 199,198,197
-    //both pots at 75 gives -10dB, both at 109 gives -20 dB, both at 125 gives -30 dB
-    if (amplitude == 199) potTap_min = 75;
-    if (amplitude == 198) potTap_min = 109;
-    if (amplitude == 197) potTap_min = 125;
+    //pots at 11 gives -10dB, at 22 gives -20 dB, at 42 gives -30 dB
+    if (amplitude == 199) potTap_min = 11;
+    if (amplitude == 198) potTap_min = 22;
+    if (amplitude == 197) potTap_min = 42;
   } 
   volume = amplitude;
   Serial.print("Volume changed to "); Serial.print(volume); Serial.println("");
@@ -250,8 +246,6 @@ static void selectorHandler(uint8_t btnId, uint8_t btnState) {
     } else if (frequency == 32000) {
       changeVolumeHelper(volume_tone32[0]);
     }
-
-    changeWaveHelper(waveShape);
   }
 }
 
@@ -279,125 +273,6 @@ static void pollButtons() {
   tone32Button.update(digitalRead(TONE32_PIN));
 }
 
-void printHelp() {
-  Serial.print("\nDS1881E Example ");
-  Serial.print("\n---< Meta >-------------------------\n");
-  Serial.print("?     This output\n");
-  #if defined(DS1881_DEBUG)
-  Serial.print("i     DS1881E info\n");
-  #endif
-
-  Serial.print("\n---< Channel Manipulation >-----------\n");
-  Serial.print("[/]   Volume up/down for channel 0\n");
-  Serial.print("{/}   Volume up/down for channel 1\n");
-  Serial.print("+/-   Volume up/down for both channels at once\n");
-  Serial.print("x     Refresh register shadows\n");
-  Serial.print("I     Reinitialize\n");
-  Serial.print("#     Store wiper settings in NV\n");
-  Serial.print("S     Serialize\n");
-  Serial.print("R/r   Set range to 63/33\n");
-  Serial.print("E/e   (En/Dis)able channel (mute)/\n");
-  Serial.print("Z/z   (En/Dis)able zerocross detection\n");
-  Serial.print("q     Query feedback\n");
-}
-
-void loop_ds1881_ex() {
-  float voltage = analogRead(A6);
-  DIGITALPOT_ERROR ret = DIGITALPOT_ERROR::NO_ERROR;
-  if (Serial.available()) {
-    char c = Serial.read();
-    switch (c) {
-      case 'q':
-        voltage *= 3.3; //vdd
-        voltage /= 4096; //12-bit
-        Serial.println(voltage);
-        break;
-      case '[':
-      case ']':
-        ret = ds1881.setValue(0, ds1881.getValue(0) + (('[' == c) ? 1 : -1));
-        Serial.print("setValue() returns ");
-        Serial.println(DS1881::errorToStr(ret));
-        break;
-      case '{':
-      case '}':
-        ret = ds1881.setValue(1, ds1881.getValue(1) + (('{' == c) ? 1 : -1));
-        Serial.print("setValue() returns ");
-        Serial.println(DS1881::errorToStr(ret));
-        break;
-      case '-':
-      case '+':
-        ret = ds1881.setValue(ds1881.getValue(0) + (('-' == c) ? 1 : -1));
-        Serial.print("setValue() returns ");
-        Serial.println(DS1881::errorToStr(ret));
-        break;
-      case 'Z':
-      case 'z':
-        ret = ds1881.zerocrossWait('Z' == c);
-        Serial.print("zerocrossWait() returns ");
-        Serial.println(DS1881::errorToStr(ret));
-        break;
-      case 'E':
-      case 'e':
-        ret = ds1881.enable('E' == c);
-        Serial.print("enable() returns ");
-        Serial.println(DS1881::errorToStr(ret));
-        break;
-      case '#':
-        ret = ds1881.storeWipers();
-        Serial.print("storeWipers() returns ");
-        Serial.println(DS1881::errorToStr(ret));
-        break;
-      case 'R':
-      case 'r':
-        ret = ds1881.setRange(('R' == c) ? 63 : 33);
-        Serial.print("setRange() returns ");
-        Serial.println(DS1881::errorToStr(ret));
-        break;
-      case 'I':
-        ret = ds1881.init();
-        Serial.print("init() returns ");
-        Serial.println(DS1881::errorToStr(ret));
-        break;
-      case 'x':
-        ret = ds1881.refresh();
-        Serial.print("refresh() returns ");
-        Serial.println(DS1881::errorToStr(ret));
-        break;
-      case 'S':   // Save the state into a buffer for later reconstitution.
-        {
-          uint8_t buffer[DS1881_SERIALIZE_SIZE];
-          uint8_t written = ds1881.serialize(buffer, DS1881_SERIALIZE_SIZE);
-          if (DS1881_SERIALIZE_SIZE == written) {
-            for (uint8_t i = 0; i < DS1881_SERIALIZE_SIZE; i++) {
-              Serial.print((buffer[i] > 0x0F) ? "0x" : "0x0");
-              Serial.print(buffer[i], HEX);
-              Serial.print(((i+1) % 12) ? " " : "\n");
-            }
-            Serial.println();
-          }
-          else {
-            Serial.print("serialize() returns ");
-            Serial.print(written);
-            Serial.print(". Was expecting ");
-            Serial.println(DS1881_SERIALIZE_SIZE);
-          }
-        }
-        break;
-
-      case '?':  printHelp();           break;
-      #if defined(DS1881_DEBUG)
-      case 'i':
-        {
-          StringBuilder output;
-          ds1881.printDebug(&output);
-          Serial.print((char*) output.string());
-        }
-        break;
-      #endif
-    }
-  }
-}
-
 void setup() { 
   Serial.begin(115200);
   analogReadResolution(12);
@@ -414,9 +289,7 @@ void setup() {
   pinMode(TONE8_PIN, INPUT_PULLUP);
   pinMode(TONE16_PIN, INPUT_PULLUP);
   pinMode(TONE32_PIN, INPUT_PULLUP);
-  
-  pinMode(A6, INPUT);
-  
+
   // Try to initialize!
   Wire1.begin();        // join i2c bus
   delay(10);
@@ -425,54 +298,25 @@ void setup() {
     Wire1.begin(); 
     delay(100);
   }
-  
+  ds1881.enable(true);
+  delay(10);
+  ds1881.zerocrossWait(false);
+  delay(10);
+  ds1881.zerocrossWait(true);
   digitalWrite(RELAY_PIN, !USING_RELAY); //write low (mute) if using, otherwise write high
   NoiseAmp = 0;
-  //potTap = 127; // quiet (max resistance) | 0 is loud (min resistance)
-  //updatePots(potTap);
-
-  ds1881.enable(true);
-  potTap = 0;
-  ds1881.setValue(potTap);
-  ds1881.zerocrossWait(false);
-  ds1881.zerocrossWait(true);
+ 
+  potTap = 63; // quiet (max resistance) | 0 is loud (min resistance)
+  updatePots(potTap);
 
   Setup_DAWG(); //Due Arbitrary Waveform Generator - not my acronym haha  
   if (ExactFreqMode) ToggleExactFreqMode(); //we DON'T want to be in exact mode, which has nasty harmonics at 32khz
 }
 
-int8_t increment = 1;
-
 
 void loop() { 
   pollButtons();
   currentMillis = millis();
-
-  int voltage = analogRead(A6);
-  //voltage *= 3.3; //vdd
-  //voltage /= 4096; //12-bit
-
-  // Serial.print("PotTap: ");
-  // Serial.print(potTap);
-  // Serial.print("     Reading: ");
-  // Serial.print(ds1881.getValue(1));
-  // Serial.print("     Voltage: ");
-  // Serial.print(voltage);
-  // Serial.println("");
-
-  // unsigned long in = currentMillis - lastUpdate;
-  // unsigned long left = lastUpdate + COSINE_PERIOD*2 - currentMillis;
-  // uint16_t k;
-  // if (left <= COSINE_PERIOD) {
-  //   k = constrain((COS_TABLE_SIZE-1) * left / COSINE_PERIOD, 0, COS_TABLE_SIZE-1);
-  //   potTap = pgm_read_word_near(potTable + k);
-  //   updatePots(potTap);
-  // } else if (in <= COSINE_PERIOD) {
-  //   k = constrain((COS_TABLE_SIZE-1) * in / COSINE_PERIOD, 0, COS_TABLE_SIZE-1);
-  //   potTap = pgm_read_word_near(potTable + k);
-  //   updatePots(potTap);
-  // }
-  // if (left == 0 || in > 2*COSINE_PERIOD) lastUpdate = currentMillis;
   
   for (unsigned int i=0; i < SOUND_COUNT; i++) {
     //specify volume for next sound shortly (1s) before it plays
@@ -490,17 +334,17 @@ void loop() {
   //fade up or down as needed
   uint16_t j;
   if (soundStartedAt && remaining == 0) { //min volume
-    potTap = 127;
+    potTap = 63;
     //Serial.print("off ");
     updatePots(potTap);
   } else if (soundStartedAt && remaining <= COSINE_PERIOD) { //in cosine gate at end, fade down
     j = constrain((COS_TABLE_SIZE-1) * remaining / COSINE_PERIOD, 0, COS_TABLE_SIZE-1);
-    potTap = potTap_min + (127-potTap_min) * pgm_read_word_near(cosTable + j) / COS_TABLE_AMPLITUDE;
+    potTap = pgm_read_word_near(potTable + 2048 - j);
     //Serial.print("down ");
     updatePots(potTap);
   } else if (soundStartedAt && elapsed <= COSINE_PERIOD) { //in cosine gate at start, fade up
     j = constrain((COS_TABLE_SIZE-1) * elapsed / COSINE_PERIOD, 0, COS_TABLE_SIZE-1);
-    potTap = potTap_min + (127-potTap_min) * pgm_read_word_near(cosTable + j) / COS_TABLE_AMPLITUDE;
+    potTap = pgm_read_word_near(potTable + 2048 - j);
     //Serial.print("up ");
     updatePots(potTap);
   } else if (soundStartedAt && elapsed > COSINE_PERIOD && elapsed < remaining) { //full volume
@@ -517,8 +361,7 @@ void loop() {
   
   //loop_ds1881_ex();
   Loop_DAWG(); //Due Arbitrary Waveform Generator - not my acronym haha
-  //Serial.print(foo); Serial.print("   "); Serial.print(bar); Serial.print("   "); Serial.print(baz);Serial.println("");
-  delay(1); //sound production itself is interrupt-driven, so this just spends less time in the keypad processing and fading volumes
+  delay(1); //sound production itself is interrupt-driven, so this just spends less time in the keypad processing and fewer steps fading volumes
 }
 
 // can feed back dac through ds1881 to a5/a6/a7 which are free to read new value for tests
