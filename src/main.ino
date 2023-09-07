@@ -17,7 +17,7 @@
 #define BOOKEND_DURATION     60000   // ms duration of silence at beginning and end, must be less than 1/2 RECORDING_DURATION
 #define GAP_DURATION         25000   // ms between sounds
 #define SOUND_DURATION        5000   // ms duration of sound to play
-#define COSINE_PERIOD            1   // ms duration of cosine gate function, must be less than or equal to 1/2 SOUND_DURATION
+#define COSINE_PERIOD           10   // ms duration of cosine gate function, must be less than or equal to 1/2 SOUND_DURATION
 #define SOUND_COUNT             18   // total number of samples to play
 
 // DO NOT EDIT 
@@ -88,7 +88,7 @@ void updatePots(uint8_t tap) {
   if (tap != potTap_old) {
     ds1881.setValue(1, tap);
     potTap_old = tap;
-    //Serial.print("fade "); Serial.print(tap); Serial.println("");
+    Serial.print("fade "); Serial.print(tap); Serial.println("");
   } 
 }
 
@@ -339,12 +339,12 @@ void loop() {
     updatePots(potTap);
   } else if (soundStartedAt && remaining <= COSINE_PERIOD) { //in cosine gate at end, fade down
     j = constrain((COS_TABLE_SIZE-1) * remaining / COSINE_PERIOD, 0, COS_TABLE_SIZE-1);
-    potTap = pgm_read_word_near(potTable + 2048 - j);
+    potTap = pgm_read_word_near(potTable + COS_TABLE_SIZE-1 - j);
     //Serial.print("down ");
     updatePots(potTap);
   } else if (soundStartedAt && elapsed <= COSINE_PERIOD) { //in cosine gate at start, fade up
     j = constrain((COS_TABLE_SIZE-1) * elapsed / COSINE_PERIOD, 0, COS_TABLE_SIZE-1);
-    potTap = pgm_read_word_near(potTable + 2048 - j);
+    potTap = pgm_read_word_near(potTable + COS_TABLE_SIZE-1 - j);
     //Serial.print("up ");
     updatePots(potTap);
   } else if (soundStartedAt && elapsed > COSINE_PERIOD && elapsed < remaining) { //full volume
