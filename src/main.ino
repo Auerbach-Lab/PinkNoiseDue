@@ -3,13 +3,7 @@
 #include "costable.h"
 #include "DueArbitraryWaveformGeneratorV2.h"
 #include <Wire.h>
-#include <DS1881.h>
-#if defined(DS1881_DEBUG)
-  // If debugging is enabled in the build, another dependency will be needed.
-  // It can be disabled in the driver's header file.
-  // https://github.com/jspark311/CppPotpourri
-  #include <StringBuilder.h>
-#endif  // DS1881_DEBUG
+#include <Adafruit_DS1841.h>
 
 // EDIT THESE VALUES to adjust timings on sequence
 // define either recording_duration OR sound_count here, and calculate the other below
@@ -17,7 +11,7 @@
 #define BOOKEND_DURATION     60000   // ms duration of silence at beginning and end, must be less than 1/2 RECORDING_DURATION
 #define GAP_DURATION         25000   // ms between sounds
 #define SOUND_DURATION        5000   // ms duration of sound to play
-#define COSINE_PERIOD           10   // ms duration of cosine gate function, must be less than or equal to 1/2 SOUND_DURATION
+#define COSINE_PERIOD          500   // ms duration of cosine gate function, must be less than or equal to 1/2 SOUND_DURATION
 #define SOUND_COUNT             18   // total number of samples to play
 
 // DO NOT EDIT 
@@ -79,14 +73,16 @@ int32_t frequency = 0;
 uint32_t volume = 0;
 
 extern TwoWire Wire1; // use SCL1 & SDA1 for I2c to potentiometers
-DS1881 ds1881(DS1881_BASE_I2C_ADDR);
+Adafruit_DS1841 ds0; //logarithmic potentiometer DS1841
+Adafruit_DS1841 ds1; 
 int8_t potTap = 0; //controls output of potentiometers, 0-127
 int8_t potTap_old = -1;
 int8_t potTap_min = 0;
 
 void updatePots(uint8_t tap) {
   if (tap != potTap_old) {
-    ds1881.setValue(1, tap);
+    ds0.setWiper(tap);
+    ds1.setWiper(tap);
     potTap_old = tap;
     Serial.print("fade "); Serial.print(tap); Serial.println("");
   } 
@@ -113,17 +109,16 @@ void changeVolumeHelper(uint32_t amplitude) {
   if (waveShape == SINUSOIDAL) {
     SinAmp = amplitude/1000000.0; //sinamp is a float
     CreateWaveFull(0); //the 0 specifies waveshape 0, sinusoidal
-    //analogWrite(DAC1, (uint32_t) 2048*SinAmp);
   } else {
     NoiseAmp = (uint16_t) amplitude; //noiseamp is a uint32_t
     //noiseamp takes effect immediately, no need to rebuild wave
 
     //hacky fix for getting the lowest volumes from noise: use the potentiometers
     //lowest three volumes are amplitudes of 199,198,197
-    //pots at 11 gives -10dB, at 22 gives -20 dB, at 42 gives -30 dB
-    if (amplitude == 199) potTap_min = 11;
-    if (amplitude == 198) potTap_min = 22;
-    if (amplitude == 197) potTap_min = 42;
+    //both pots at 75 gives -10dB, both at 109 gives -20 dB, both at 125 gives -30 dB
+    if (amplitude == 199) potTap_min = 75;
+    if (amplitude == 198) potTap_min = 109;
+    if (amplitude == 197) potTap_min = 125;
   } 
   volume = amplitude;
   Serial.print("Volume changed to "); Serial.print(volume); Serial.println("");
@@ -144,7 +139,6 @@ static void silenceSound(int i) {
   changeWaveHelper(SILENCE); 
   digitalWrite(TTL_OUTPUT_PIN, LOW);
   if (USING_RELAY) digitalWrite(RELAY_PIN, LOW);
-  NoiseAmp = 0;
   soundStartedAt = 0; //clear the indication that sound is playing
   soundStopsAt = 0;
   soundToStop[i] = 0; //clear the assignment     
@@ -289,34 +283,34 @@ void setup() {
   pinMode(TONE8_PIN, INPUT_PULLUP);
   pinMode(TONE16_PIN, INPUT_PULLUP);
   pinMode(TONE32_PIN, INPUT_PULLUP);
-
+  
   // Try to initialize!
   Wire1.begin();        // join i2c bus
   delay(10);
-  while (ds1881.init(&Wire1) != DIGITALPOT_ERROR::NO_ERROR) {
-    Serial.println("Failed to find DS1881 chip at 0x28"); //0x28 = DS1881_BASE_I2C_ADDR
+  while (!ds0.begin(0x28, &Wire1)) {
+    Serial.println("Failed to find DS1841 chip at 0x28");
     Wire1.begin(); 
     delay(100);
   }
-  ds1881.enable(true);
-  delay(10);
-  ds1881.zerocrossWait(false);
-  delay(10);
-  ds1881.zerocrossWait(true);
+  while (!ds1.begin(0x2A, &Wire1)) {
+    Serial.println("Failed to find DS1841 chip at 0x2A");
+    Wire1.begin(); 
+    delay(100);
+  }
+  
   digitalWrite(RELAY_PIN, !USING_RELAY); //write low (mute) if using, otherwise write high
-  NoiseAmp = 0;
- 
-  potTap = 63; // quiet (max resistance) | 0 is loud (min resistance)
+  potTap = 127; // quiet (max resistance) | 0 is loud (min resistance)
   updatePots(potTap);
-
   Setup_DAWG(); //Due Arbitrary Waveform Generator - not my acronym haha  
   if (ExactFreqMode) ToggleExactFreqMode(); //we DON'T want to be in exact mode, which has nasty harmonics at 32khz
+  NoiseAmp = 0;
 }
-
 
 void loop() { 
   pollButtons();
   currentMillis = millis();
+  static unsigned long elapsed;
+  static unsigned long remaining;
   
   for (unsigned int i=0; i < SOUND_COUNT; i++) {
     //specify volume for next sound shortly (1s) before it plays
@@ -328,23 +322,23 @@ void loop() {
   }
 
   currentMillis = millis();
-  unsigned long elapsed = currentMillis - soundStartedAt;
-  unsigned long remaining = soundStopsAt - currentMillis;
+  elapsed = currentMillis - soundStartedAt; //float so we get reasonable math below rather than integer math
+  remaining = soundStopsAt - currentMillis;
 
-  //fade up or down as needed
-  uint16_t j;
+  //play sound, fading up or down as needed
+  static uint16_t j;
   if (soundStartedAt && remaining == 0) { //min volume
-    potTap = 63;
+    potTap = 127;
     //Serial.print("off ");
     updatePots(potTap);
   } else if (soundStartedAt && remaining <= COSINE_PERIOD) { //in cosine gate at end, fade down
     j = constrain((COS_TABLE_SIZE-1) * remaining / COSINE_PERIOD, 0, COS_TABLE_SIZE-1);
-    potTap = pgm_read_word_near(potTable + COS_TABLE_SIZE-1 - j);
+    potTap = potTap_min + (127-potTap_min) * pgm_read_word_near(cosTable + j) / COS_TABLE_AMPLITUDE;
     //Serial.print("down ");
     updatePots(potTap);
   } else if (soundStartedAt && elapsed <= COSINE_PERIOD) { //in cosine gate at start, fade up
     j = constrain((COS_TABLE_SIZE-1) * elapsed / COSINE_PERIOD, 0, COS_TABLE_SIZE-1);
-    potTap = pgm_read_word_near(potTable + COS_TABLE_SIZE-1 - j);
+    potTap = potTap_min + (127-potTap_min) * pgm_read_word_near(cosTable + j) / COS_TABLE_AMPLITUDE;
     //Serial.print("up ");
     updatePots(potTap);
   } else if (soundStartedAt && elapsed > COSINE_PERIOD && elapsed < remaining) { //full volume
@@ -359,11 +353,8 @@ void loop() {
     if (sequenceToStop && (currentMillis >= sequenceToStop)) {stopSequence();}
   }
   
-  //loop_ds1881_ex();
-  Loop_DAWG(); //Due Arbitrary Waveform Generator - not my acronym haha
-  delay(1); //sound production itself is interrupt-driven, so this just spends less time in the keypad processing and fewer steps fading volumes
-}
 
-// can feed back dac through ds1881 to a5/a6/a7 which are free to read new value for tests
-// if we do this use a breadboard and a 1000 ohm resistor on the dac, maybe a 3.3v zener also
-// with a 220 ohm and the 50 mA fuse this is the protection circuit we had before, might as well?
+  Loop_DAWG(); //Due Arbitrary Waveform Generator - not my acronym haha
+  //Serial.print(foo); Serial.print("   "); Serial.print(bar); Serial.print("   "); Serial.print(baz);Serial.println("");
+  delay(0); //sound production itself is interrupt-driven, so this just spends less time in the keypad processing and fading volumes
+}
