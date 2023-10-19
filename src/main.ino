@@ -5,24 +5,21 @@
 #include <Wire.h>
 #include <Adafruit_DS1841.h>
 
-// EDIT THESE VALUES to adjust timings on sequence
-// define either recording_duration OR sound_count here, and calculate the other below
-// #define RECORDING_DURATION  600000   // ms duration of entire recording sequence, must be at least BOOKEND_DURATION * 2 + SOUND_DURATION for a single sound
-#define BOOKEND_DURATION     60000   // ms duration of silence at beginning and end, must be less than 1/2 RECORDING_DURATION
-#define GAP_DURATION         25000   // ms between sounds
+// Values for tones/noise with multiple volumes configuration
+// #define BOOKEND_DURATION     60000   // ms duration of silence at beginning and end, must be less than 1/2 RECORDING_DURATION
+// #define GAP_DURATION         25000   // ms between sounds
+// #define SOUND_DURATION        5000   // ms duration of sound to play
+// #define COSINE_PERIOD          500   // ms duration of cosine gate function, must be less than or equal to 1/2 SOUND_DURATION
+// #define SOUND_COUNT             18   // total number of samples to play
+// const uint8_t  r[SOUND_COUNT] = {5,1,7,2,3,6,0,8,4,7,3,8,6,0,2,5,4,1}; //fixed random order to play the volumes in
+
+// Values for noise-only 90-dB-only configuration
+#define BOOKEND_DURATION    120000   // ms duration of silence at beginning and end, must be less than 1/2 RECORDING_DURATION
+#define GAP_DURATION         30000   // ms between sounds
 #define SOUND_DURATION        5000   // ms duration of sound to play
 #define COSINE_PERIOD          500   // ms duration of cosine gate function, must be less than or equal to 1/2 SOUND_DURATION
-#define SOUND_COUNT             18   // total number of samples to play
-
-// DO NOT EDIT 
-// total number of sounds that will play, if defined recording_duration above
-// +GAP in numerator because last tone does not need GAP included to fit
-// will be 11 under default settings of 600s recording, 120s bookend, 30s gap, 5s sound
-// unsigned const int SOUND_COUNT = (RECORDING_DURATION - 2*BOOKEND_DURATION + GAP_DURATION) / (SOUND_DURATION + GAP_DURATION);
-
-// DO NOT EDIT
-// total duration of entire recording sequence, if defined sound_count instead of recording_duration
-const uint32_t RECORDING_DURATION = SOUND_COUNT * (SOUND_DURATION + GAP_DURATION) + 2*BOOKEND_DURATION - GAP_DURATION;
+#define SOUND_COUNT             11   // total number of samples to play
+const uint8_t  r[SOUND_COUNT] = {0,0,0,0,0,0,0,0,0,0,0};
 
 // VOLUME CALIBRATION
 // These are given as amplitude ratios of the waveform, i.e. direct control on arduino
@@ -34,8 +31,9 @@ const uint32_t volume_tone4[9]  = {460000,145000,46000,14500,5200,1900,800,505,4
 const uint32_t volume_tone8[9]  = {320000,100000,32000,10250,3500,1400,580,495,489};
 const uint32_t volume_tone16[9] = {700000,225000,75000,23000,8500,2800,1200,525,492};
 const uint32_t volume_tone32[9] = {1000000,316228,100000,31623,10000,3500,1500,580,502};
-const uint8_t  r[SOUND_COUNT] = {5,1,7,2,3,6,0,8,4,7,3,8,6,0,2,5,4,1}; //fixed random order to play the volumes in
 
+// total duration of entire recording sequence
+const uint32_t RECORDING_DURATION = SOUND_COUNT * (SOUND_DURATION + GAP_DURATION) + 2*BOOKEND_DURATION - GAP_DURATION;
 
 //A2 56 and A4 58 are available, but do not use A3, causes noise on boot, stop before start, other weirdness
 //odd pins from 25 through 39 are available now
