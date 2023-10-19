@@ -2,7 +2,7 @@
 
  - **Author:** Brian James, <brian@tofof.com>
  - **Date:** 2023-09-05
- - **Version:** 0.2.0
+ - **Version:** 1.1.0
  - **Contact:** Ben Auerbach, Auerbach Lab, University of Illinois \<bda5@illinois.edu>
 
 
