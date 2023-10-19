@@ -1,6 +1,6 @@
 # Tone/noise generator with synchronized TTL
 
- - **Author:** Brian James, <brian@tofof.com>
+ - **Author:** Brian James, <james29@illinois.edu>
  - **Date:** 2023-09-05
  - **Version:** 1.1.0
  - **Contact:** Ben Auerbach, Auerbach Lab, University of Illinois \<bda5@illinois.edu>
