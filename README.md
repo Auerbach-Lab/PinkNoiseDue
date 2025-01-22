@@ -53,7 +53,7 @@ The sounds are played in the following order of intensities (dB):
 Note that each intensity is played twice, with intensities of 10-90 dB.
 
 ## Sound Spectral Quality
-Real world results show spectrally-accurate pink noise in the range of 6.5-25 kHz, and possibly beyond (smartphone app does not support measurements in frequencies above 25 kHz). Between 3-6.5 kHz intensity is mostly uniform, i.e. white noise. As frequency decreases, intensity falls off, beginning below 3 kHz and reaching levels undistinguishable from ambient below 750 Hz. 
+Real world results using the [included amplifier and speaker](https://github.com/Auerbach-Lab/PinkNoiseDue/blob/main/README.md#parts) show spectrally-accurate pink noise in the range of 6.5-25 kHz, and possibly beyond (smartphone app does not support measurements in frequencies above 25 kHz). Between 3-6.5 kHz intensity is mostly uniform, i.e. white noise. As frequency decreases, intensity falls off, beginning below 3 kHz and reaching levels undistinguishable from ambient below 750 Hz.
 
 ![Screenshot from the Spectroid app showing a linear falloff of intensity vs frequency in the range of 6.5-25 kHz, with reference levels of -30 dB @ 6.5 kHz to -75 dB @ 25 kHz](https://github.com/Auerbach-Lab/PinkNoiseDue/blob/7478535de894f6554dea8b48933255e167ce98e0/docs/pink_noise_spectral.png?raw=true)
 
