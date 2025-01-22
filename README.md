@@ -92,17 +92,17 @@ const uint8_t  r[SOUND_COUNT] = {5,1,7,2,3,6,0,8,4,7,3,8,6,0,2,5,4,1}; //fixed r
 ## Parts
 **Speaker** - Fostex FT17H tweeter, with a rated frequency response of 5-40 kHz. Produces audio down to 500 Hz , but with diminished intensity outside its rated range. As a result, the peak intensity of the pink noise is at 3 kHz; frequencies between 0.5-3 kHz have diminished intensity from true pink noise. The speaker housing includes as 1/4"-20 threaded nut allowing it to be mounted to microphone/camera booms.
 
-**Control box** - The control box consists of an Arduino Due, a DS1881 digital potentiometer, and a relay. The arduino may be reprogrammed using either of the micro-usb ports. The control box also incorporates circuitry to protect the vulnerable and precious DAC output pin from static electricity or other inrush current, including a fuse.
+**Control box** - The control box consists of an Arduino Due, a DS1881 digital audio potentiometer, and a relay. The arduino may be reprogrammed using either of the micro-usb ports. The control box also incorporates circuitry to protect the vulnerable and precious DAC output pin from static electricity or other inrush current, including a fuse.
 
 **Amplifier** - Fosi Audio V3 Stereo Amplifier, based on a TPA3255 chipset. 
 
-**Power supplies** - For the arduino: 12VDC 2A, 5.5x2.1mm (short) plug. Higher amperage power supplies are also suitable. The short (8-9mm) variant of this size plug is uncommon; the more common length (10-11mm) may be used but will not fully insert. This would not be a safety hazard; the exposed portion of plug is ground. For the amplifier: 32VDC 5A, also in 5.5x2.1 plug. **Do not confuse the two power supplies or you will destroy the arduino control box.**
+**Power supplies** - For the arduino: 12VDC 2A, 5.5x2.1mm (short) plug. Higher amperage power supplies are also suitable. The short (8-9mm) variant of this size plug is uncommon; the more common length (10-11mm) may be used but will not fully insert. Such use is not a significant safety hazard; the outer barrel is ground, and voltage and current are both low. For the amplifier: 32VDC 5A, also in 5.5x2.1 plug. **Do not confuse the two power supplies or you will destroy the arduino control box.** Colored labels near the tip of each wire are included and should not be removed.
 
 **3.5mm-RCA cable** - male-male mono or stereo adapter cable, converting between 3.5mm minijack and RCA, used between the control box and the amplifier.
 
 **3.5mm-Banana plug cable** - male-male mono or stereo adapter cable, converting between 3.5mm minijack and banana plugs (or bare terminals). Used between the speaker and the amplifier. If bare terminals are used, they can be screwed into place on the amplifier instead of plugged into the center socket of the outputs.
 
-**BNC cable** - A 50Ω male-male cable is provided, matching the impedance on the control box and the RWD R820 sockets. This is by far the more common type of BNC cable, but in practice a 75Ω cable would also work perfectly in this application (and presents no hazard to either device). 
+**BNC cable** - A 50Ω male-male cable is provided, matching the impedance on the control box and the RWD R820 sockets. This is by far the most common impedence for BNC cables, but in practice a 75Ω cable should also work perfectly in this application (and should present no hazard to either device). 
 
 **C-stand** - desk mount arm with a 1/4"-20 screw post to attach the speaker to, so it can be positioned directly above the center of an open field enclosure.
 
@@ -115,9 +115,9 @@ If the blue LED illuminates but no sound can be heard from the speaker:
 
 
 ## Notes for Future Maintainers
-The relay is present to completely disconnect the audio output, to eliminate background hiss. It is ancillary after the introduction of the DS1881, which provides a mute feature with zero-crossing detection to enable a similar hard disconnect without risk of a transient (pop or click) in the audio output.
+The relay is present to completely disconnect the audio output, to eliminate background hiss. It is ancillary after the introduction of the DS1881 digital audio potentiometer, which advertises capability of a similar hard disconnect without risk of a transient (pop or click) in the audio output by using zero-crossing detection. In practice, transients were still present even after incorporation of the DS1881.
 
-No lowpass filtering capacitor is used directly on the speaker, despite it being a tweeter. Experiments with adding a lowpass filtering capacitor resulted in diminished volume from the speaker. The FT17H is an 8Ω speaker, suggesting a 25-50uF capacitor would be appropriate ([guide](https://how-to-install-car-audio-systems.blogspot.com/2016/03/how-to-add-capacitor-to-car-tweeter.html)) if this is to be pursued in the future.
+No lowpass filtering capacitor is used directly on the speaker, despite it being a tweeter. Experiments with adding a lowpass filtering capacitor resulted in diminished volume from the speaker. The FT17H is an 8Ω speaker, suggesting a 25-50uF capacitor would be ([appropriate](https://how-to-install-car-audio-systems.blogspot.com/2016/03/how-to-add-capacitor-to-car-tweeter.html)) if this is to be pursued in the future.
 
 The software incorporates the [Due Arbitrary Waveform Generator](https://projecthub.arduino.cc/BruceEvans/4281674f-b6ae-4d5c-af6a-2fe70bb86825?f=1), a very powerful suite that can generate, as the name suggests, any type of wave or tone. In addition to the DueAWGController GUI, which can be downloaded from the project's github, it supports an interactive serial interface which can be accessed by:
 ```
